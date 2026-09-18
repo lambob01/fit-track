@@ -64,6 +64,7 @@ frontend/src/types/openapi.d.ts
 
 # Env / data / build artifacts
 .env
+tracker.db*
 data/*
 !data/.gitkeep
 backend/app/static/*
@@ -79,7 +80,8 @@ backend/app/static/*
 # Required in production
 SECRET_KEY=change-me-to-a-long-random-string
 APP_USERNAME=albert
-APP_PASSWORD_HASH=   # generate: docker compose exec app python -m app.cli hash-password
+# Generate with: docker compose exec app python -m app.cli hash-password
+APP_PASSWORD_HASH=
 
 # Database (container default); dev default is sqlite:///./tracker.db
 DATABASE_URL=sqlite:////data/tracker.db
