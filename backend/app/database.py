@@ -1,13 +1,14 @@
 from collections.abc import Generator
+from uuid import UUID
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import Uuid, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
 
 
 class Base(DeclarativeBase):
-    pass
+    type_annotation_map = {UUID: Uuid(as_uuid=False)}
 
 
 def apply_sqlite_pragmas(engine) -> None:
