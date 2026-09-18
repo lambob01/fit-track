@@ -1119,7 +1119,7 @@ class FakeSet:
 
 def test_epley_bounds():
     assert epley_1rm(100.0, 1) == pytest.approx(103.33, rel=1e-3)
-    assert epley_1rm(100.0, 12) is not None
+    assert epley_1rm(100.0, 12) == pytest.approx(140.0)
     assert epley_1rm(100.0, 13) is None
     assert epley_1rm(None, 5) is None
     assert epley_1rm(100.0, 0) is None
@@ -1128,7 +1128,7 @@ def test_epley_bounds():
 def test_volume_excludes_warmups_and_bodyweight():
     sets = [FakeSet(100, 5), FakeSet(100, 5, is_warmup=True), FakeSet(None, 20)]
     assert session_volume_kg(sets) == 500
-    assert session_reps_volume(sets) == 20
+    assert session_reps_volume(sets) == 25  # 5 + 20; warmups excluded, bodyweight included
 
 
 def test_pace():
@@ -1170,6 +1170,24 @@ def test_bucket_start_in_user_timezone():
     assert bucket_start(moment, "Europe/London", "day") == datetime(2026, 1, 4, tzinfo=timezone.utc)
     assert bucket_start(moment, "Europe/London", "month") == datetime(2026, 1, 1, tzinfo=timezone.utc)
     assert bucket_start(moment, "Europe/London", "year") == datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def test_last_in_bucket_returns_last_entry_and_keeps_last_seen_tie():
+    from app.services.analytics import last_in_bucket
+
+    morning = datetime(2026, 1, 5, 8, 0, tzinfo=timezone.utc)
+    evening = datetime(2026, 1, 5, 20, 0, tzinfo=timezone.utc)
+    # Ordered by (measured_at, created_at); the duplicate evening timestamps
+    # model a created_at tie-break, so the later-seen weight must win.
+    entries = [(morning, 80.0), (evening, 79.0), (evening, 78.5)]
+    assert last_in_bucket(entries, "UTC", "day") == [
+        (datetime(2026, 1, 5, tzinfo=timezone.utc), evening, 78.5)
+    ]
+
+
+def test_linear_trend_zero_variance_returns_none():
+    same = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert linear_trend([(same, 80.0), (same, 81.0)]) is None
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1241,10 +1259,6 @@ def _local(dt_utc: datetime, tz: str) -> datetime:
     return dt_utc.astimezone(ZoneInfo(tz))
 
 
-def _local_midnight_to_utc(local_day: datetime, tz: str) -> datetime:
-    return local_day.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
-
-
 def bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime:
     local = _local(dt_utc, tz)
     if bucket == "day":
@@ -1263,13 +1277,18 @@ def bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime:
 
 
 def last_in_bucket(entries, tz: str, bucket: str):
+    """Return (bucket_start, measured_at, weight_kg) per bucket, ascending.
+
+    Callers must pass entries ordered by (measured_at, created_at); equal
+    timestamps keep the later-seen row (matches the spec's created_at tie-break).
+    """
     grouped: dict[datetime, tuple[datetime, float]] = {}
     for moment, weight in entries:
         key = bucket_start(moment, tz, bucket)
         current = grouped.get(key)
-        if current is None or moment > current[0]:
+        if current is None or moment >= current[0]:
             grouped[key] = (moment, weight)
-    return [(key, grouped[key][1]) for key in sorted(grouped)]
+    return [(key, grouped[key][0], grouped[key][1]) for key in sorted(grouped)]
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1475,7 +1494,7 @@ Expected: FAIL (404 / module missing).
 
 - Schemas: `WeightEntryCreate` (`measured_at: datetime`, `weight_kg: float = Field(gt=0)`, `body_fat_pct: float | None = Field(default=None, gt=0, lt=100)`, `notes: str | None`), `WeightEntryPatch` (all optional, `model_fields_set` semantics), `WeightEntryOut`.
 - Router CRUD with ownership checks (`db.get(WeightEntry, id)` + `entry.user_id != user.id → 404`).
-- Series handler: load user's entries in `[from, to]` ordered by `measured_at` (defaults: `to = now UTC`, `from = to - 90 days`, `bucket = "day"`), map to `(measured_at, weight_kg)`, call `moving_average` and `linear_trend` from `app.services.analytics`, and `last_in_bucket(entries, user.timezone, bucket)` for points.
+- Series handler: load user's entries in `[from, to]` ordered by `(measured_at, created_at)` (defaults: `to = now UTC`, `from = to - 90 days`, `bucket = "day"`), map to `(measured_at, weight_kg)`, call `moving_average` and `linear_trend` from `app.services.analytics`, and unpack `last_in_bucket(entries, user.timezone, bucket)` triples into points `{bucket_start, measured_at, weight_kg}`.
 - Ensure `measured_at` is coerced to UTC: if naive → 422; if aware → `astimezone(timezone.utc)`.
 - Mount router in `main.py`.
 
