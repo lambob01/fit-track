@@ -725,12 +725,13 @@ def me(user: User = Depends(get_current_user)) -> User:
 - [ ] **Step 7: Write `backend/app/main.py`** (health is public; routers opt into auth)
 
 ```python
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.database import SessionLocal
+from app.database import get_db
 from app.routers import auth
 
 app = FastAPI(title="Fitness Tracker", version="0.1.0")
@@ -744,10 +745,9 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
+def health(db: Session = Depends(get_db)) -> dict[str, str]:
     try:
-        with SessionLocal() as db:
-            db.execute(text("SELECT 1"))
+        db.execute(text("SELECT 1"))
     except Exception:
         raise HTTPException(status_code=503, detail={"status": "error"})
     return {"status": "ok"}
@@ -756,6 +756,8 @@ def health() -> dict[str, str]:
 app.include_router(auth.router)
 # Later phases: routers with dependencies=[Depends(get_current_user)] or per-route Depends
 ```
+
+**Note:** use `Depends(get_db)` (not `SessionLocal`) so tests override the session and never touch the dev database file. `get_db` does not trigger auth; `/api/health` stays public.
 
 **R1 note:** `/api/health` is declared directly on the app with no dependency. Never add it to a protected router or an app-wide dependency.
 
