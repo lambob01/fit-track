@@ -21,15 +21,46 @@
 - No stored PR table, no background jobs, no offline sync, no i18n, no rate limiting, no Sentry.
 - Known display-time rules live in `frontend/src/lib/units.ts` and `frontend/src/lib/datetime.ts` only.
 
-## Execution Checkpoints (user-mandated pauses)
+## Execution Workflow (updated 2026-09-18, user-mandated)
 
-- After Step 0 (these docs) — **pause for review**
-- After Phase 1 — pause
-- After Phase 2 — pause
-- After Phase 3 (seed) — pause to eyeball fake data
-- After Phase 5 — pause
-- After Phase 7 — pause
-- Phase 6 view tasks: commit per task, no pause between them
+**Per-task reviewer loop.** After a task's implementation is complete (changes in the working tree,
+not yet committed), dispatch a read-only reviewer subagent with:
+the uncommitted diff, `docs/superpowers/specs/2026-09-18-fitness-tracker-design.md`,
+this plan, and `AGENTS.md`. The reviewer never edits code and returns either `APPROVE` or a
+numbered list of required changes (`file:line`, problem, proposed fix). Fix and re-review until
+`APPROVE`; only then commit. Never commit a task the reviewer has not approved.
+
+Reviewer checklist (every task):
+1. Matches the spec section(s) the task targets.
+2. Tests actually assert what the commit message claims (read test bodies, not names).
+3. No silent failure paths — bad input rejected with 4xx, never coerced/swallowed.
+4. Nullable semantics explicit (null goals/weight/reps/HR/body-fat never become 0/NaN/default).
+5. UTC vs local explicit; flag DST-sensitive or tz-naive time math.
+6. FK delete rules: CASCADE user-owned, RESTRICT exercise refs, SET NULL `workouts.template_id`
+   and `cardio_activities.shoe_id`.
+7. New endpoints authenticated (`Depends(get_current_user)`); `/api/health` stays public.
+8. No new field/endpoint/table/constraint beyond the spec without escalation.
+9. Frontend dates only via `lib/datetime.ts`, units only via `lib/units.ts`; no
+   `Date.prototype.toLocale*` outside `lib/datetime.ts`.
+10. Numeric inputs `type="text"` + `inputMode`, never `type="number"`.
+
+**Escalation (reviewer must stop and surface to the user, not decide):**
+schema changes; new endpoints not in the spec; additions to the spec's "explicitly out of scope"
+list; unresolvable spec/plan conflicts; new third-party dependencies; deviations from canonical
+units (kg, meters, seconds, cm) or UTC storage.
+
+**Pauses (only two).**
+- After Phase 3 (seed): print first 5 `weight_entries` rows, one complete workout with nested
+  `workout_exercises`/`sets` as indented JSON, first 3 `cardio_activities` rows, and the output of
+  `python -m app.seed` on a fresh DB followed by `--reset`.
+- After Phase 7 (deploy + docs + E2E): Docker build success, containers running, `/api/health` 200,
+  `/docs` 200, `/api/dashboard` returns seeded values, PWA install prompt appears.
+- Phases 4, 5, 6, and 7 run through the reviewer loop without pausing.
+
+**Push policy.** Push only after Phase 3 and after Phase 7. Before each push, report:
+`git log origin/main..HEAD --oneline`, `git status --porcelain`, and
+`git ls-files | grep -E '\.(db|db-shm|db-wal|env)$'` (must print only `.env.example` or nothing).
+Never force-push; never rewrite pushed history.
 
 ---
 
@@ -2770,5 +2801,7 @@ git commit -m "build: add docker-compose with SQLite volume"
 
 ## Execution Handoff
 
-Use **subagent-per-task with review between tasks** (user-selected). Required sub-skill: `superpowers:subagent-driven-development`. Pause for user review after Step 0, Phase 1, Phase 2, Phase 3, Phase 5, and Phase 7; commit per task without pausing across Phase 6.
+Execute with **subagent-per-task plus a read-only reviewer subagent before each commit** (see
+"Execution Workflow" above). Only two pauses remain: after Phase 3 and after Phase 7. Push only at
+those pauses, after the pre-push checks are reported to the user.
 
