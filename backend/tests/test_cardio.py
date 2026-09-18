@@ -72,6 +72,14 @@ def test_week_window_is_dst_safe(auth_client):
     assert body["week_end"] == "2026-03-09T04:00:00Z"
 
 
+def test_week_window_non_monday_start(auth_client):
+    auth_client.patch("/api/settings", json={"timezone": "America/New_York"})
+    # Wednesday Oct 28 2026 00:00 EDT -> Wednesday Nov 4 00:00 EST (crosses fall-back)
+    body = auth_client.get("/api/cardio/week?week_start=2026-10-28").json()
+    assert body["week_start"] == "2026-10-28T04:00:00Z"
+    assert body["week_end"] == "2026-11-04T05:00:00Z"
+
+
 def test_ownership_and_naive_datetime(auth_client, db):
     other = User(id=uuid.uuid4(), username="other", password_hash="x")
     db.add(other)

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -75,18 +75,19 @@ def _summary_fields(distance_m: float, duration_s: int, activity_count: int) -> 
 
 
 def _week_window(user: User, week_start: date | None) -> tuple[datetime, datetime]:
-    """Return the UTC [start, end) instants of the local calendar week.
+    """Return the UTC [start, end) instants of a 7-local-day window.
 
-    `end` is the next local Monday midnight computed through `bucket_start`, so
-    DST-transition weeks stay 7 local calendar days (167/169 wall-clock hours).
+    Both instants are derived from local wall-clock midnight, so DST-transition
+    weeks stay 7 local calendar days (167/169 wall-clock hours) and an explicit
+    non-Monday `week_start` still spans the documented 7 days.
     """
+    tzinfo = ZoneInfo(user.timezone)
     if week_start is None:
-        start = bucket_start(datetime.now(UTC), user.timezone, "week")
+        local_start = bucket_start(datetime.now(UTC), user.timezone, "week").astimezone(tzinfo)
     else:
-        start = datetime(
-            week_start.year, week_start.month, week_start.day, tzinfo=ZoneInfo(user.timezone)
-        ).astimezone(UTC)
-    end = bucket_start(start + timedelta(days=8), user.timezone, "week")
+        local_start = datetime.combine(week_start, time.min, tzinfo=tzinfo)
+    start = local_start.astimezone(UTC)
+    end = (local_start + timedelta(days=7)).astimezone(UTC)
     return start, end
 
 
