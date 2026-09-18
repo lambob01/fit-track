@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@custom-variant light (&:where(.light, .light *));
+
+@theme {
+  --color-surface: #09090b;
+  --color-surface-raised: #18181b;
+  --color-line: #27272a;
+  --color-content: #fafafa;
+  --color-content-muted: #a1a1aa;
+  --color-accent: #34d399;
+  --color-accent-strong: #10b981;
+}
+
+.light {
+  --color-surface: #fafafa;
+  --color-surface-raised: #ffffff;
+  --color-line: #e4e4e7;
+  --color-content: #18181b;
+  --color-content-muted: #52525b;
+  --color-accent: #059669;
+  --color-accent-strong: #047857;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-surface text-content antialiased;
+  }
+}
