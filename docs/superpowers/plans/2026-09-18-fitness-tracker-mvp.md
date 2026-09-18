@@ -221,13 +221,9 @@ git commit -m "chore(backend): scaffold FastAPI project with typed settings"
 - [ ] **Step 1: Write the failing test `backend/tests/test_models.py`**
 
 ```python
-import uuid
-
-import pytest
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.exc import IntegrityError
 
-from app.models import Base, Exercise
+from app.models import Base
 
 
 EXPECTED_TABLES = {
@@ -254,18 +250,7 @@ def test_named_unique_constraints():
     assert "uq_sets_workout_exercise_set_number" in names("sets")
     assert "uq_workout_exercises_workout_position" in names("workout_exercises")
     assert "uq_template_exercises_template_position" in names("template_exercises")
-
-
-def test_exercise_duplicate_name_rejected(db, user):
-    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="Bench Press", name_lower="bench press"))
-    db.commit()
-    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="bench press", name_lower="bench press"))
-    with pytest.raises(IntegrityError):
-        db.commit()
-    db.rollback()
 ```
-
-(Note: the `engine`, `db`, and `user` fixtures arrive with Task 1.5's `conftest.py`; Task 1.5 is implemented before Phase 2, and this test is expected to be run then. If executing strictly in order, move the third test into `test_auth.py` when conftest exists.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -346,7 +331,7 @@ Key model requirements (all from the spec):
 - [ ] **Step 5: Run test to verify structural assertions pass**
 
 Run: `cd backend && uv run pytest tests/test_models.py -v`
-Expected: `test_all_tables_present` and `test_named_unique_constraints` PASS; the duplicate-name test errors until Task 1.5 exists (move it forward as noted).
+Expected: PASS (2 passed).
 
 - [ ] **Step 6: Commit**
 
@@ -1190,11 +1175,28 @@ git commit -m "feat(analytics): e1RM, volume, pace, moving average, trend, bucke
 - [ ] **Step 1: Write the failing test `backend/tests/test_exercises.py`**
 
 ```python
+import uuid
+
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from app.models import Exercise
+
+
 def test_create_and_duplicate(auth_client):
     created = auth_client.post("/api/exercises", json={"name": "Bench Press"})
     assert created.status_code == 201
     again = auth_client.post("/api/exercises", json={"name": "bench press"})
     assert again.status_code == 409
+
+
+def test_duplicate_name_violates_db_constraint(db, user):
+    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="Bench Press", name_lower="bench press"))
+    db.commit()
+    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="bench press", name_lower="bench press"))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
 
 
 def test_resolve_creates_then_reuses_case_insensitively(auth_client):
