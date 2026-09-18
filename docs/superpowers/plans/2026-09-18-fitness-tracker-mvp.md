@@ -1021,6 +1021,65 @@ git commit -m "feat(settings): user bootstrap and partial-update settings endpoi
 
 ---
 
+### Task 1.7: Settings validation hardening (deferred-finding fix)
+
+**Files:**
+- Modify: `backend/app/schemas/settings.py`, `backend/tests/test_settings.py`
+
+**Interfaces:**
+- Produces: value-domain validation so invalid settings values return 422 instead of a DB `IntegrityError` → 500.
+
+- [ ] **Step 1: Add failing tests to `backend/tests/test_settings.py`**
+
+```python
+def test_patch_rejects_out_of_domain_values(auth_client):
+    assert auth_client.patch("/api/settings", json={"unit_system": "banana"}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"max_hr": 99}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"max_hr": 251}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"goal_weight_kg": 0}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"goal_weight_kg": -5}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"weekly_run_goal_m": 0}).status_code == 422
+
+
+def test_patch_weekly_run_goal_value_and_null(auth_client):
+    auth_client.patch("/api/settings", json={"weekly_run_goal_m": 20000})
+    assert auth_client.get("/api/settings").json()["weekly_run_goal_m"] == 20000
+    auth_client.patch("/api/settings", json={"weekly_run_goal_m": None})
+    assert auth_client.get("/api/settings").json()["weekly_run_goal_m"] is None
+```
+
+- [ ] **Step 2: Run to verify RED**
+
+Run: `cd backend && uv run pytest tests/test_settings.py -v`
+Expected: the out-of-domain tests FAIL with 500 (DB CHECK violation), not 422.
+
+- [ ] **Step 3: Implement**
+
+```python
+from typing import Literal
+
+class SettingsPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    unit_system: Literal["metric", "imperial"] | None = None
+    timezone: str | None = None
+    goal_weight_kg: float | None = Field(default=None, gt=0)
+    weekly_run_goal_m: float | None = Field(default=None, gt=0)
+    max_hr: int | None = Field(default=None, ge=100, le=250)
+    # timezone validator unchanged
+```
+
+- [ ] **Step 4: Run to verify GREEN**
+
+Run: `cd backend && uv run pytest -v && uv run ruff check .`
+Expected: 20 passed, ruff clean.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add backend/app/schemas/settings.py backend/tests/test_settings.py
+git commit -m "fix(settings): validate value domains so bad input returns 422"
+```
+
 ## Phase 2 — MVP routers and analytics
 
 ### Task 2.0: Pure analytics service
