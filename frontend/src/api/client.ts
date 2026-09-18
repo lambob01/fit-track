@@ -1,4 +1,4 @@
-import type { LoginRequest, Settings, SettingsPatch, User } from './types'
+import type { Dashboard, LoginRequest, Settings, SettingsPatch, User } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -71,4 +71,8 @@ export const authApi = {
 export const settingsApi = {
   get: () => api<Settings>('/api/settings'),
   update: (patch: SettingsPatch) => api<Settings>('/api/settings', jsonRequest('PATCH', patch)),
+}
+
+export const dashboardApi = {
+  get: () => api<Dashboard>('/api/dashboard'),
 }
