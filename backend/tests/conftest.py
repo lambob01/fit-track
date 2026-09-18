@@ -37,7 +37,7 @@ def db(engine):
 @pytest.fixture()
 def user(db):
     u = User(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         username="albert",
         password_hash=hash_password(TEST_PASSWORD),
         unit_system="metric",

@@ -1,4 +1,5 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -18,11 +19,11 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-def health(db: Session = Depends(get_db)) -> dict[str, str]:
+def health(db: Session = Depends(get_db)) -> Response:
     try:
         db.execute(text("SELECT 1"))
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail={"status": "error"}) from exc
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "error"})
     return {"status": "ok"}
 
 

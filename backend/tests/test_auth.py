@@ -6,6 +6,13 @@ def test_login_with_bad_password(client):
     assert response.status_code == 401
 
 
+def test_login_with_overlong_password(client):
+    response = client.post(
+        "/api/auth/login", json={"username": "albert", "password": "x" * 73}
+    )
+    assert response.status_code == 401
+
+
 def test_me_requires_session(client):
     assert client.get("/api/auth/me").status_code == 401
 

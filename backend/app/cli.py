@@ -33,7 +33,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if args.command == "hash-password":
-        print(hash_password(_read_password()))
+        try:
+            print(hash_password(_read_password()))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1) from exc
     elif args.command == "backup":
         source = settings.database_url.removeprefix("sqlite:///")
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")

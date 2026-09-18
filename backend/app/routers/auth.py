@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -17,7 +19,7 @@ class LoginRequest(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: str
+    id: UUID
     username: str
     unit_system: str
     timezone: str
@@ -33,7 +35,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    request.session["user_id"] = user.id
+    request.session["user_id"] = str(user.id)
 
 
 @router.post("/logout", status_code=204)
