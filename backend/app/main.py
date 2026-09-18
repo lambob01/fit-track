@@ -6,7 +6,18 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import get_db
-from app.routers import auth, cardio, dashboard, data, exercises, templates, weight, workouts
+from app.deps import get_current_user
+from app.routers import (
+    auth,
+    cardio,
+    dashboard,
+    data,
+    exercises,
+    phase2,
+    templates,
+    weight,
+    workouts,
+)
 from app.routers import settings as settings_router
 
 app = FastAPI(title="Fitness Tracker", version="0.1.0")
@@ -37,4 +48,9 @@ app.include_router(settings_router.router)
 app.include_router(weight.router)
 app.include_router(workouts.router)
 app.include_router(templates.router)
+
+app.include_router(phase2.measurements_router, dependencies=[Depends(get_current_user)])
+app.include_router(phase2.photos_router, dependencies=[Depends(get_current_user)])
+app.include_router(phase2.tags_router, dependencies=[Depends(get_current_user)])
+app.include_router(phase2.shoes_router, dependencies=[Depends(get_current_user)])
 # Later phases: routers with dependencies=[Depends(get_current_user)] or per-route Depends
