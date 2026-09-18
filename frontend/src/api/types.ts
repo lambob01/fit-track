@@ -25,6 +25,26 @@ export interface LoginRequest {
   password: string
 }
 
+export type ExportEntity =
+  | 'exercises'
+  | 'workout_templates'
+  | 'template_exercises'
+  | 'workouts'
+  | 'workout_exercises'
+  | 'sets'
+  | 'weight_entries'
+  | 'cardio_activities'
+  | 'body_measurements'
+  | 'progress_photos'
+  | 'tags'
+  | 'workout_tags'
+  | 'shoes'
+
+export interface ImportCounts {
+  created: Record<string, number>
+  updated: Record<string, number>
+}
+
 export interface LatestWeight {
   measured_at: string
   weight_kg: number

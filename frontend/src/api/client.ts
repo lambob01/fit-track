@@ -11,6 +11,8 @@ import type {
   ExerciseProgress,
   ExercisePrs,
   ExerciseResolveResult,
+  ExportEntity,
+  ImportCounts,
   LastPerformance,
   LoginRequest,
   SetInput,
@@ -47,6 +49,24 @@ export class ApiError extends Error {
   }
 }
 
+function validationMessages(detail: unknown[]): string[] {
+  return detail.flatMap((item) => {
+    if (typeof item === 'string') {
+      return [item]
+    }
+    if (typeof item !== 'object' || item === null) {
+      return []
+    }
+    const message = (item as { msg?: unknown }).msg
+    if (typeof message !== 'string') {
+      return []
+    }
+    const location = (item as { loc?: unknown }).loc
+    const path = Array.isArray(location) ? location.join('.') : ''
+    return [path === '' ? message : `${path}: ${message}`]
+  })
+}
+
 async function readErrorDetail(response: Response): Promise<string> {
   const fallback = response.statusText || `Request failed with status ${response.status}`
 
@@ -56,6 +76,12 @@ async function readErrorDetail(response: Response): Promise<string> {
       const detail = (body as { detail: unknown }).detail
       if (typeof detail === 'string') {
         return detail
+      }
+      if (Array.isArray(detail)) {
+        const messages = validationMessages(detail)
+        if (messages.length > 0) {
+          return messages.join('; ')
+        }
       }
     }
   } catch {
@@ -84,6 +110,16 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return JSON.parse(text) as T
 }
 
+export async function apiText(path: string, init: RequestInit = {}): Promise<string> {
+  const response = await fetch(path, { credentials: 'include', ...init })
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorDetail(response))
+  }
+
+  return response.text()
+}
+
 function jsonRequest(method: string, body?: unknown): RequestInit {
   if (body === undefined) {
     return { method }
@@ -110,6 +146,17 @@ export const settingsApi = {
 
 export const dashboardApi = {
   get: () => api<Dashboard>('/api/dashboard'),
+}
+
+export const dataApi = {
+  exportJson: () => api<unknown>('/api/export/json'),
+  exportCsv: (entity: ExportEntity) => apiText(`/api/export/${entity}.csv`),
+  importJson: (body: string) =>
+    api<ImportCounts>('/api/import/json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    }),
 }
 
 export interface ExerciseListParams {

@@ -13,7 +13,7 @@ export interface SettingsContextValue {
   goalWeightKg: number | null
   weeklyRunGoalM: number | null
   maxHr: number | null
-  updateSettings: (patch: SettingsPatch) => Promise<void>
+  updateSettings: (patch: SettingsPatch) => Promise<Settings>
   refreshSettings: () => Promise<void>
 }
 
@@ -62,11 +62,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const updateSettings = useCallback(
-    async (patch: SettingsPatch) => {
+    async (patch: SettingsPatch): Promise<Settings> => {
       if (user === null) {
-        return
+        throw new Error('Not authenticated')
       }
-      setLoaded({ userId: user.id, data: await settingsApi.update(patch) })
+      const data = await settingsApi.update(patch)
+      setLoaded({ userId: user.id, data })
+      return data
     },
     [user],
   )

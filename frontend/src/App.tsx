@@ -12,9 +12,9 @@ import { TemplateEditorPage } from './features/lifting/TemplateEditorPage'
 import { TemplateListPage } from './features/lifting/TemplateListPage'
 import { WorkoutLoggerPage } from './features/lifting/WorkoutLoggerPage'
 import { RunningPage } from './features/running/RunningPage'
+import { SettingsPage } from './features/settings/SettingsPage'
 import { WeightPage } from './features/weight/WeightPage'
 import { LoginPage } from './pages/LoginPage'
-import { SettingsPage } from './pages/SettingsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
