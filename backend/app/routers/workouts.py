@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Exercise, SetEntry, User, Workout, WorkoutExercise
+from app.models import Exercise, SetEntry, User, Workout, WorkoutExercise, WorkoutTemplate
 from app.schemas.workout import (
     E1rmPrOut,
     LastPerformanceOut,
@@ -55,6 +55,14 @@ def _get_owned_exercise(db: Session, user: User, exercise_id: UUID) -> Exercise:
     if exercise is None or exercise.user_id != user.id:
         raise HTTPException(status_code=404, detail="Exercise not found")
     return exercise
+
+
+def _validate_template(db: Session, user: User, template_id: UUID | None) -> None:
+    if template_id is None:
+        return
+    template = db.get(WorkoutTemplate, template_id)
+    if template is None or template.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Template not found")
 
 
 def _get_owned_workout_exercise(
@@ -217,6 +225,7 @@ def upsert_workout(
     workout = db.get(Workout, workout_id)
     if workout is not None and workout.user_id != user.id:
         raise HTTPException(status_code=403, detail="Workout belongs to another user")
+    _validate_template(db, user, payload.template_id)
     try:
         if workout is None:
             workout = Workout(
@@ -315,6 +324,8 @@ def patch_workout(
     user: User = Depends(get_current_user),
 ) -> WorkoutOut:
     workout = _get_owned_workout(db, user, workout_id)
+    if "template_id" in payload.model_fields_set and payload.template_id is not None:
+        _validate_template(db, user, payload.template_id)
     for field in payload.model_fields_set:
         setattr(workout, field, getattr(payload, field))
     _commit_or_409(db)
@@ -345,6 +356,7 @@ def add_workout_exercise(
 ) -> WorkoutExerciseOut:
     workout = _get_owned_workout(db, user, workout_id)
     _get_owned_exercise(db, user, payload.exercise_id)
+    numbers = _set_numbers(payload.sets)
     conflict = db.scalar(
         select(WorkoutExercise).where(
             WorkoutExercise.workout_id == workout.id,
@@ -357,35 +369,43 @@ def add_workout_exercise(
         raise HTTPException(
             status_code=409, detail="Workout exercise id is already attached elsewhere"
         )
-    workout_exercise_id = payload.id or uuid4()
-    db.add(
-        WorkoutExercise(
-            id=workout_exercise_id,
-            workout_id=workout.id,
-            exercise_id=payload.exercise_id,
-            position=payload.position,
-            notes=payload.notes,
-            superset_group=payload.superset_group,
-        )
-    )
-    db.flush()
-    for set_in, number in zip(payload.sets, _set_numbers(payload.sets), strict=False):
+    for set_in in payload.sets:
         if set_in.id is not None and db.get(SetEntry, set_in.id) is not None:
             raise HTTPException(status_code=409, detail="Set id is already attached elsewhere")
+    workout_exercise_id = payload.id or uuid4()
+    try:
         db.add(
-            SetEntry(
-                id=set_in.id or uuid4(),
-                workout_exercise_id=workout_exercise_id,
-                set_number=number,
-                weight_kg=set_in.weight_kg,
-                reps=set_in.reps,
-                rpe=set_in.rpe,
-                is_warmup=set_in.is_warmup,
-                is_drop_set=set_in.is_drop_set,
-                notes=set_in.notes,
+            WorkoutExercise(
+                id=workout_exercise_id,
+                workout_id=workout.id,
+                exercise_id=payload.exercise_id,
+                position=payload.position,
+                notes=payload.notes,
+                superset_group=payload.superset_group,
             )
         )
-    _commit_or_409(db)
+        db.flush()
+        for set_in, number in zip(payload.sets, numbers, strict=False):
+            db.add(
+                SetEntry(
+                    id=set_in.id or uuid4(),
+                    workout_exercise_id=workout_exercise_id,
+                    set_number=number,
+                    weight_kg=set_in.weight_kg,
+                    reps=set_in.reps,
+                    rpe=set_in.rpe,
+                    is_warmup=set_in.is_warmup,
+                    is_drop_set=set_in.is_drop_set,
+                    notes=set_in.notes,
+                )
+            )
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Conflict with existing data") from exc
     item = _get_owned_workout_exercise(db, user, workout_exercise_id)
     return _workout_exercise_out(db, item)
 

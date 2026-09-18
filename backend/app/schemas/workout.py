@@ -186,7 +186,7 @@ class SetPatch(BaseModel):
 
     @model_validator(mode="after")
     def required_fields_not_null(self) -> "SetPatch":
-        for field in ("set_number", "reps"):
+        for field in ("set_number", "reps", "is_warmup", "is_drop_set"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from app.models import User, Workout
+from app.models import User, Workout, WorkoutTemplate
 
 
 def _payload(exercise_id, workout_id=None):
@@ -138,3 +138,159 @@ def test_last_performance_returns_latest_sets(auth_client, exercise):
     response = auth_client.get(f"/api/exercises/{exercise['id']}/last-performance")
     assert response.status_code == 200
     assert len(response.json()["sets"]) == 2
+
+
+def test_child_uuid_attached_elsewhere_conflicts(auth_client, exercise):
+    first = auth_client.post("/api/workouts", json=_payload(exercise["id"]))
+    assert first.status_code == 201
+    child_id = first.json()["exercises"][0]["id"]
+    set_id = first.json()["exercises"][0]["sets"][0]["id"]
+
+    reuse_child = _payload(exercise["id"])
+    reuse_child["exercises"][0]["id"] = child_id
+    assert auth_client.post("/api/workouts", json=reuse_child).status_code == 409
+
+    reuse_set = _payload(exercise["id"])
+    reuse_set["exercises"][0]["sets"][0]["id"] = set_id
+    assert auth_client.post("/api/workouts", json=reuse_set).status_code == 409
+
+    assert len(auth_client.get("/api/workouts").json()) == 1
+
+
+def test_workout_patch_delete(auth_client, exercise):
+    created = auth_client.post("/api/workouts", json=_payload(exercise["id"])).json()
+
+    patched = auth_client.patch(
+        f"/api/workouts/{created['id']}",
+        json={
+            "name": "Leg Day",
+            "notes": "felt good",
+            "performed_at": "2026-09-19T10:00:00Z",
+        },
+    )
+    assert patched.status_code == 200
+    assert patched.json()["name"] == "Leg Day"
+    assert patched.json()["notes"] == "felt good"
+    assert patched.json()["performed_at"] == "2026-09-19T10:00:00Z"
+
+    fetched = auth_client.get(f"/api/workouts/{created['id']}")
+    assert fetched.json()["name"] == "Leg Day"
+    assert fetched.json()["performed_at"] == "2026-09-19T10:00:00Z"
+
+    assert auth_client.delete(f"/api/workouts/{created['id']}").status_code == 204
+    assert auth_client.get(f"/api/workouts/{created['id']}").status_code == 404
+
+
+def test_add_exercise_and_edit_delete(auth_client, exercise):
+    created = auth_client.post("/api/workouts", json=_payload(exercise["id"])).json()
+
+    added = auth_client.post(
+        f"/api/workouts/{created['id']}/exercises",
+        json={
+            "id": str(uuid.uuid4()),
+            "exercise_id": exercise["id"],
+            "position": 1,
+            "sets": [{"weight_kg": 60.0, "reps": 8}],
+        },
+    )
+    assert added.status_code == 201
+    item = added.json()
+    assert item["sets"][0]["set_number"] == 1
+
+    edited = auth_client.patch(
+        f"/api/workout-exercises/{item['id']}", json={"position": 2, "notes": "superset"}
+    )
+    assert edited.status_code == 200
+    assert edited.json()["position"] == 2
+    assert edited.json()["notes"] == "superset"
+
+    fast = auth_client.post(
+        f"/api/workout-exercises/{item['id']}/sets", json={"weight_kg": 65.0, "reps": 6}
+    )
+    assert fast.status_code == 201
+    assert fast.json()["set_number"] == 2
+
+    set_id = fast.json()["id"]
+    set_patch = auth_client.patch(
+        f"/api/sets/{set_id}", json={"weight_kg": 67.5, "reps": 5}
+    )
+    assert set_patch.status_code == 200
+    assert set_patch.json()["weight_kg"] == 67.5
+    assert set_patch.json()["reps"] == 5
+
+    assert auth_client.delete(f"/api/sets/{set_id}").status_code == 204
+    assert auth_client.delete(f"/api/workout-exercises/{item['id']}").status_code == 204
+
+
+def test_failed_add_exercise_leaves_no_partial_row(auth_client, exercise):
+    created = auth_client.post("/api/workouts", json=_payload(exercise["id"])).json()
+
+    # A supplied set_number that collides with the implicit 1..n assignment raises 422
+    # after the workout exercise would previously have been flushed without rollback.
+    response = auth_client.post(
+        f"/api/workouts/{created['id']}/exercises",
+        json={
+            "id": str(uuid.uuid4()),
+            "exercise_id": exercise["id"],
+            "position": 1,
+            "sets": [
+                {"set_number": 2, "weight_kg": 60.0, "reps": 8},
+                {"weight_kg": 60.0, "reps": 8},
+            ],
+        },
+    )
+    assert response.status_code == 422
+
+    fetched = auth_client.get(f"/api/workouts/{created['id']}").json()
+    assert len(fetched["exercises"]) == 1
+
+
+def test_naive_performed_at_and_duplicate_positions_rejected(auth_client, exercise):
+    naive = _payload(exercise["id"])
+    naive["performed_at"] = "2026-09-18T17:30:00"
+    assert auth_client.post("/api/workouts", json=naive).status_code == 422
+
+    duplicated = _payload(exercise["id"])
+    duplicated["exercises"].append(
+        {
+            "id": str(uuid.uuid4()),
+            "exercise_id": exercise["id"],
+            "position": duplicated["exercises"][0]["position"],
+            "sets": [],
+        }
+    )
+    assert auth_client.post("/api/workouts", json=duplicated).status_code == 422
+
+
+def test_template_must_belong_to_user(auth_client, db, exercise):
+    missing = _payload(exercise["id"])
+    missing["template_id"] = str(uuid.uuid4())
+    assert auth_client.post("/api/workouts", json=missing).status_code == 404
+
+    other = User(id=uuid.uuid4(), username="template-owner", password_hash="x")
+    db.add(other)
+    db.commit()
+    template = WorkoutTemplate(
+        id=uuid.uuid4(), user_id=other.id, name="Foreign", name_lower="foreign"
+    )
+    db.add(template)
+    db.commit()
+
+    foreign = _payload(exercise["id"])
+    foreign["template_id"] = str(template.id)
+    assert auth_client.post("/api/workouts", json=foreign).status_code == 404
+    assert auth_client.get("/api/workouts").json() == []
+
+    created = auth_client.post("/api/workouts", json=_payload(exercise["id"])).json()
+    patched = auth_client.patch(
+        f"/api/workouts/{created['id']}", json={"template_id": str(template.id)}
+    )
+    assert patched.status_code == 404
+
+
+def test_set_patch_rejects_null_flags(auth_client, exercise):
+    created = auth_client.post("/api/workouts", json=_payload(exercise["id"])).json()
+    set_id = created["exercises"][0]["sets"][0]["id"]
+    assert auth_client.patch(f"/api/sets/{set_id}", json={"is_warmup": None}).status_code == 422
+    assert auth_client.patch(f"/api/sets/{set_id}", json={"is_drop_set": None}).status_code == 422
+    assert auth_client.patch(f"/api/sets/{set_id}", json={"weight_kg": None}).status_code == 200
