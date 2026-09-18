@@ -1089,7 +1089,7 @@ git commit -m "fix(settings): validate value domains so bad input returns 422"
 - Test: `backend/tests/test_analytics.py`
 
 **Interfaces:**
-- Produces: `epley_1rm(weight_kg: float, reps: int) -> float | None` (None when reps outside 1..12), `session_volume_kg(sets) -> float`, `session_reps_volume(sets) -> int`, `pace_s_per_km(distance_m: float | None, duration_s: int) -> float | None`, `moving_average(entries: list[tuple[datetime, float]], window_days: int = 7) -> list[float | None]`, `linear_trend(entries: list[tuple[datetime, float]]) -> dict | None`, `bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime` (UTC instant of the local bucket start), `last_in_bucket(entries, tz, bucket) -> list[tuple[datetime, float]]`.
+- Produces: `epley_1rm(weight_kg: float, reps: int) -> float | None` (None when reps outside 1..12), `session_volume_kg(sets) -> float`, `session_reps_volume(sets) -> int`, `pace_s_per_km(distance_m: float | None, duration_s: int) -> float | None`, `moving_average(entries: list[tuple[datetime, float]], window_days: int = 7) -> list[float | None]`, `linear_trend(entries: list[tuple[datetime, float]]) -> dict | None`, `bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime` (UTC instant of the local bucket start), `last_in_bucket(entries, tz, bucket) -> list[tuple[datetime, datetime, float]]` = `(bucket_start, measured_at, weight_kg)`.
 - `sets` args are objects with `.weight_kg`, `.reps`, `.is_warmup`.
 
 - [ ] **Step 1: Write the failing test `backend/tests/test_analytics.py`**
