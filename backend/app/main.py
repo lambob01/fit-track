@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -54,3 +56,21 @@ app.include_router(phase2.photos_router, dependencies=[Depends(get_current_user)
 app.include_router(phase2.tags_router, dependencies=[Depends(get_current_user)])
 app.include_router(phase2.shoes_router, dependencies=[Depends(get_current_user)])
 # Later phases: routers with dependencies=[Depends(get_current_user)] or per-route Depends
+
+
+_static_dir = Path(__file__).parent / "static"
+_spa_index = _static_dir / "index.html"
+
+if _spa_index.is_file():
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> Response:
+        if full_path == "api" or full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        base_dir = _static_dir.resolve()
+        candidate = (base_dir / full_path).resolve()
+        if not candidate.is_relative_to(base_dir):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_spa_index)
