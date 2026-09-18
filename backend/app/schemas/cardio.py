@@ -89,5 +89,12 @@ class CardioSummaryOut(BaseModel):
 
 
 class CardioWeekOut(CardioSummaryOut):
+    week_start: datetime
+    week_end: datetime
     weekly_goal_m: float | None
     goal_progress_pct: float | None
+
+    @field_validator("week_start", "week_end")
+    @classmethod
+    def utc_timestamps(cls, value: datetime) -> datetime:
+        return stored_utc(value)

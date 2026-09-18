@@ -1,4 +1,9 @@
+import uuid
+from datetime import UTC, datetime
+
 import pytest
+
+from app.models import CardioActivity, User
 
 
 def test_activity_crud_and_pace(auth_client):
@@ -53,3 +58,40 @@ def test_other_cardio_types_supported(auth_client):
     assert auth_client.post("/api/cardio", json={
         "performed_at": "2026-09-15T06:00:00Z", "type": "skiing", "duration_s": 600,
     }).status_code == 422
+
+
+def test_week_window_is_dst_safe(auth_client):
+    auth_client.patch("/api/settings", json={"timezone": "America/New_York"})
+    # Fall back: Sunday Nov 1 2026; the local week is [Mon Oct 26 00:00 EDT, Mon Nov 2 00:00 EST)
+    body = auth_client.get("/api/cardio/week?week_start=2026-10-26").json()
+    assert body["week_start"] == "2026-10-26T04:00:00Z"
+    assert body["week_end"] == "2026-11-02T05:00:00Z"
+    # Spring forward: Sunday Mar 8 2026; [Mon Mar 2 00:00 EST, Mon Mar 9 00:00 EDT)
+    body = auth_client.get("/api/cardio/week?week_start=2026-03-02").json()
+    assert body["week_start"] == "2026-03-02T05:00:00Z"
+    assert body["week_end"] == "2026-03-09T04:00:00Z"
+
+
+def test_ownership_and_naive_datetime(auth_client, db):
+    other = User(id=uuid.uuid4(), username="other", password_hash="x")
+    db.add(other)
+    db.commit()
+    foreign = CardioActivity(
+        id=uuid.uuid4(), user_id=other.id,
+        performed_at=datetime(2026, 9, 1, tzinfo=UTC),
+        type="run", duration_s=600,
+    )
+    db.add(foreign)
+    db.commit()
+    assert auth_client.get(f"/api/cardio/{foreign.id}").status_code == 404
+    assert (
+        auth_client.patch(f"/api/cardio/{foreign.id}", json={"duration_s": 700}).status_code
+        == 404
+    )
+    assert auth_client.delete(f"/api/cardio/{foreign.id}").status_code == 404
+
+    naive = auth_client.post(
+        "/api/cardio",
+        json={"performed_at": "2026-09-01T06:00:00", "type": "run", "duration_s": 600},
+    )
+    assert naive.status_code == 422

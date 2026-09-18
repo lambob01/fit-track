@@ -74,25 +74,36 @@ def _summary_fields(distance_m: float, duration_s: int, activity_count: int) -> 
     }
 
 
-def week_totals(
-    db: Session,
-    user: User,
-    week_start: date | None = None,
-    activity_type: CardioType | None = None,
-) -> CardioWeekOut:
-    """Totals for [week_start, week_start + 7 days) plus weekly run goal progress."""
+def _week_window(user: User, week_start: date | None) -> tuple[datetime, datetime]:
+    """Return the UTC [start, end) instants of the local calendar week.
+
+    `end` is the next local Monday midnight computed through `bucket_start`, so
+    DST-transition weeks stay 7 local calendar days (167/169 wall-clock hours).
+    """
     if week_start is None:
         start = bucket_start(datetime.now(UTC), user.timezone, "week")
     else:
         start = datetime(
             week_start.year, week_start.month, week_start.day, tzinfo=ZoneInfo(user.timezone)
         ).astimezone(UTC)
-    distance_m, duration_s, activity_count = _totals(
-        db, user, start, start + timedelta(days=7), activity_type
-    )
+    end = bucket_start(start + timedelta(days=8), user.timezone, "week")
+    return start, end
+
+
+def week_totals(
+    db: Session,
+    user: User,
+    week_start: date | None = None,
+    activity_type: CardioType | None = None,
+) -> CardioWeekOut:
+    """Totals for [week_start, week_start + 7 local days) plus weekly run goal progress."""
+    start, end = _week_window(user, week_start)
+    distance_m, duration_s, activity_count = _totals(db, user, start, end, activity_type)
     goal_m = user.weekly_run_goal_m
     return CardioWeekOut(
         **_summary_fields(distance_m, duration_s, activity_count),
+        week_start=start,
+        week_end=end,
         weekly_goal_m=goal_m,
         goal_progress_pct=distance_m / goal_m * 100 if goal_m else None,
     )
