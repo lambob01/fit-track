@@ -20,4 +20,24 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/lib/datetime.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'Date', property: 'toLocaleString', message: 'Use lib/datetime.ts' },
+        { object: 'Date', property: 'toLocaleDateString', message: 'Use lib/datetime.ts' },
+        { object: 'Date', property: 'toLocaleTimeString', message: 'Use lib/datetime.ts' },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^(toLocaleString|toLocaleDateString|toLocaleTimeString)$/]',
+          message: 'Use lib/datetime.ts',
+        },
+      ],
+    },
+  },
 ])

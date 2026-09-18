@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useCurrentUser } from '../lib/auth'
+import { useAuth } from '../context/AuthContext'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { data, isPending, isError } = useCurrentUser()
+  const { user, isBootstrapping } = useAuth()
   const location = useLocation()
 
-  if (isPending) {
+  if (isBootstrapping) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-surface text-sm text-content-muted">
         Loading…
@@ -14,7 +14,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     )
   }
 
-  if (isError || !data) {
+  if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 

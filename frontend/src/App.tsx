@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
+import { AuthProvider } from './context/AuthContext'
+import { SettingsProvider } from './context/SettingsContext'
 import { DashboardPage } from './pages/DashboardPage'
 import { ExerciseDetailPage } from './pages/ExerciseDetailPage'
 import { LiftingPage } from './pages/LiftingPage'
@@ -24,28 +26,32 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }
-          >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/weight" element={<WeightPage />} />
-            <Route path="/lifting" element={<LiftingPage />} />
-            <Route path="/lifting/exercises/:id" element={<ExerciseDetailPage />} />
-            <Route path="/lifting/workouts/:id" element={<WorkoutDetailPage />} />
-            <Route path="/lifting/templates" element={<TemplatesPage />} />
-            <Route path="/running" element={<RunningPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <SettingsProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                element={
+                  <RequireAuth>
+                    <Layout />
+                  </RequireAuth>
+                }
+              >
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/weight" element={<WeightPage />} />
+                <Route path="/lifting" element={<LiftingPage />} />
+                <Route path="/lifting/exercises/:id" element={<ExerciseDetailPage />} />
+                <Route path="/lifting/workouts/:id" element={<WorkoutDetailPage />} />
+                <Route path="/lifting/templates" element={<TemplatesPage />} />
+                <Route path="/running" element={<RunningPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </SettingsProvider>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }
