@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - All primary keys are UUIDs, serialized as canonical UUID strings.
+- Pydantic schemas type ID fields as `uuid.UUID` (ORM attributes are UUID objects); JSON serialization emits canonical UUID strings. Never annotate IDs as `str` in schemas fed from ORM objects.
 - All datetimes are stored and transported in UTC; JSON uses ISO 8601 with `Z`.
 - Canonical units: kg, meters, seconds, cm. Conversion happens only in the frontend.
 - Every route except `GET /api/health` and `POST /api/auth/login` requires the session cookie.
