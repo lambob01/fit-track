@@ -113,6 +113,9 @@ backend/app/static/*
 SECRET_KEY=change-me-to-a-long-random-string
 APP_USERNAME=albert
 # Generate with: docker compose exec app python -m app.cli hash-password
+# Docker Compose interpolates "$" in unquoted/double-quoted .env values and bcrypt
+# hashes contain "$"; single-quote the hash (quotes are stripped, "$" stays literal):
+#   APP_PASSWORD_HASH='$2b$12$...'
 APP_PASSWORD_HASH=
 
 # Database (container default); dev default is sqlite:///./tracker.db
@@ -2767,7 +2770,7 @@ git commit -m "build: add docker-compose with SQLite volume"
 
 ### Task 7.3: README (setup, run, backup)
 
-- Sections: prerequisites (Docker, or Node 22 + Python 3.12 + uv for dev); dev setup (`uv sync`, `alembic upgrade head`, `python -m app.seed`, `uv run uvicorn app.main:app --reload`, `cd frontend && npm install && npm run dev`); Docker setup; env vars table; backup (JSON export, `python -m app.cli backup`, raw-copy warning with WAL); Caddy/Tailscale reverse proxy note; test/lint commands.
+- Sections: prerequisites (Docker, or Node 22 + Python 3.12 + uv for dev); dev setup (`uv sync`, `alembic upgrade head`, `python -m app.seed`, `uv run uvicorn app.main:app --reload`, `cd frontend && npm install && npm run dev`); Docker setup; env vars table; backup (JSON export, `python -m app.cli backup`, raw-copy warning with WAL); Caddy/Tailscale reverse proxy note; test/lint commands. The env vars section MUST state the Compose interpolation rule: single-quote `APP_PASSWORD_HASH` because bcrypt hashes contain `$` (e.g. `APP_PASSWORD_HASH='$2b$12$...'`).
 - Commit: `docs: add setup, run, and backup instructions`.
 
 ### Task 7.4: Architecture decisions doc
