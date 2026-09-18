@@ -59,10 +59,6 @@ def _local(dt_utc: datetime, tz: str) -> datetime:
     return dt_utc.astimezone(ZoneInfo(tz))
 
 
-def _local_midnight_to_utc(local_day: datetime, tz: str) -> datetime:
-    return local_day.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
-
-
 def bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime:
     local = _local(dt_utc, tz)
     if bucket == "day":
@@ -81,10 +77,15 @@ def bucket_start(dt_utc: datetime, tz: str, bucket: str) -> datetime:
 
 
 def last_in_bucket(entries, tz: str, bucket: str):
+    """Return (bucket_start, measured_at, weight_kg) per bucket, ascending.
+
+    Callers must pass entries ordered by (measured_at, created_at); equal
+    timestamps keep the later-seen row (matches the spec's created_at tie-break).
+    """
     grouped: dict[datetime, tuple[datetime, float]] = {}
     for moment, weight in entries:
         key = bucket_start(moment, tz, bucket)
         current = grouped.get(key)
-        if current is None or moment > current[0]:
+        if current is None or moment >= current[0]:
             grouped[key] = (moment, weight)
-    return [(key, grouped[key][1]) for key in sorted(grouped)]
+    return [(key, grouped[key][0], grouped[key][1]) for key in sorted(grouped)]
