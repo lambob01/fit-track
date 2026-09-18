@@ -63,3 +63,49 @@ export interface Dashboard {
   last_workout: WorkoutSummary | null
   week_cardio: CardioWeek
 }
+
+export interface WeightEntry {
+  id: string
+  measured_at: string
+  weight_kg: number
+  body_fat_pct: number | null
+  notes: string | null
+  source: string
+}
+
+export interface WeightEntryInput {
+  measured_at: string
+  weight_kg: number
+  body_fat_pct: number | null
+  notes: string | null
+}
+
+export type WeightBucket = 'day' | 'week' | 'month' | 'year'
+
+export interface WeightSeriesPoint {
+  bucket_start: string
+  measured_at: string
+  weight_kg: number
+}
+
+export interface MovingAveragePoint {
+  measured_at: string
+  value: number
+}
+
+export interface WeightTrend {
+  slope_per_day: number
+  intercept: number
+  from_value: number
+  to_value: number
+}
+
+export interface WeightSeries {
+  bucket: WeightBucket
+  from: string
+  to: string
+  points: WeightSeriesPoint[]
+  moving_average: MovingAveragePoint[]
+  trend: WeightTrend | null
+  goal_weight_kg: number | null
+}

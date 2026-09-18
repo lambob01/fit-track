@@ -1,4 +1,14 @@
-import type { Dashboard, LoginRequest, Settings, SettingsPatch, User } from './types'
+import type {
+  Dashboard,
+  LoginRequest,
+  Settings,
+  SettingsPatch,
+  User,
+  WeightBucket,
+  WeightEntry,
+  WeightEntryInput,
+  WeightSeries,
+} from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -75,4 +85,24 @@ export const settingsApi = {
 
 export const dashboardApi = {
   get: () => api<Dashboard>('/api/dashboard'),
+}
+
+export interface WeightSeriesParams {
+  from: string
+  to: string
+  bucket: WeightBucket
+}
+
+export const weightApi = {
+  listEntries: () => api<WeightEntry[]>('/api/weight/entries'),
+  createEntry: (entry: WeightEntryInput) =>
+    api<WeightEntry>('/api/weight/entries', jsonRequest('POST', entry)),
+  updateEntry: (id: string, patch: WeightEntryInput) =>
+    api<WeightEntry>(`/api/weight/entries/${id}`, jsonRequest('PATCH', patch)),
+  deleteEntry: (id: string) =>
+    api<void>(`/api/weight/entries/${id}`, { method: 'DELETE' }),
+  series: ({ from, to, bucket }: WeightSeriesParams) => {
+    const query = new URLSearchParams({ from, to, bucket })
+    return api<WeightSeries>(`/api/weight/series?${query.toString()}`)
+  },
 }

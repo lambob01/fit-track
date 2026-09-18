@@ -11,6 +11,7 @@ export interface ChartCardProps {
   emptyMessage?: string
   height?: number
   className?: string
+  actions?: ReactNode
   children: ReactNode
 }
 
@@ -22,6 +23,7 @@ export function ChartCard({
   emptyMessage = 'No data for this range.',
   height = 256,
   className,
+  actions,
   children,
 }: ChartCardProps) {
   return (
@@ -32,7 +34,10 @@ export function ChartCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        <DateRangePicker value={range} onChange={onRangeChange} />
+        <div className="flex flex-wrap items-center gap-3">
+          {actions}
+          <DateRangePicker value={range} onChange={onRangeChange} />
+        </div>
       </div>
 
       <div className="mt-4" style={{ height }}>
