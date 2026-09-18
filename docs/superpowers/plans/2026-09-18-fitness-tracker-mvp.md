@@ -410,12 +410,18 @@ def test_migration_round_trip_and_constraints(tmp_path):
         (str(uuid.uuid4()),),
     )
     user_id = con.execute("SELECT id FROM users").fetchone()[0]
-    row = (str(uuid.uuid4()), user_id, "Bench Press", "bench press", "chest", "push", "barbell", 0, 0,
-           "2026-01-01", "2026-01-01")
-    con.execute("INSERT INTO exercises VALUES (?,?,?,?,?,?,?,?,?,?,?)", row)
+    exercise_columns = (
+        "id, user_id, name, name_lower, muscle_group, category, equipment,"
+        " is_compound, is_archived, created_at, updated_at"
+    )
+    first = (str(uuid.uuid4()), user_id, "Bench Press", "bench press", "chest", "push",
+             "barbell", 0, 0, "2026-01-01", "2026-01-01")
+    duplicate = (str(uuid.uuid4()), user_id, "bench press", "bench press", "chest", "push",
+                 "barbell", 0, 0, "2026-01-01", "2026-01-01")
+    con.execute(f"INSERT INTO exercises ({exercise_columns}) VALUES (?,?,?,?,?,?,?,?,?,?,?)", first)
     con.commit()
     try:
-        con.execute("INSERT INTO exercises VALUES (?,?,?,?,?,?,?,?,?,?,?)", row[:1] + (user_id, "bench press", "bench press", "chest", "push", "barbell", 0, 0, "2026-01-01", "2026-01-01"))
+        con.execute(f"INSERT INTO exercises ({exercise_columns}) VALUES (?,?,?,?,?,?,?,?,?,?,?)", duplicate)
         raised = False
     except sqlite3.IntegrityError:
         raised = True
@@ -1390,7 +1396,7 @@ import pytest
 from app.models import User, Workout
 
 
-def _payload(exercise_id, workout_id=None, set_ids=("s1", "s2")):
+def _payload(exercise_id, workout_id=None):
     return {
         "id": workout_id or str(uuid.uuid4()),
         "performed_at": "2026-09-18T17:30:00Z",
@@ -1401,7 +1407,7 @@ def _payload(exercise_id, workout_id=None, set_ids=("s1", "s2")):
                 "exercise_id": exercise_id,
                 "position": 0,
                 "sets": [
-                    {"id": sid, "weight_kg": 80.0, "reps": 5},
+                    {"id": str(uuid.uuid4()), "weight_kg": 80.0, "reps": 5},
                     {"id": str(uuid.uuid4()), "weight_kg": 82.5, "reps": 3, "is_warmup": False},
                 ],
             }
@@ -1480,28 +1486,43 @@ def test_fast_set_add_increments_number(auth_client, exercise):
     assert response.json()["set_number"] == 3
 
 
-def test_progress_and_prs_include_bodyweight_and_exclude_warmups(auth_client, exercise):
+def test_progress_and_prs_bodyweight_only(auth_client, exercise):
     payload = _payload(exercise["id"])
     payload["exercises"][0]["sets"] = [
         {"weight_kg": None, "reps": 10},
         {"weight_kg": None, "reps": 12},
-        {"weight_kg": 100.0, "reps": 13},  # e1RM excluded: reps > 12
         {"weight_kg": 200.0, "reps": 1, "is_warmup": True},
     ]
     auth_client.post("/api/workouts", json=payload)
 
-    progress = auth_client.get(f"/api/exercises/{exercise['id']}/progress").json()
-    session = progress["sessions"][0]
+    session = auth_client.get(f"/api/exercises/{exercise['id']}/progress").json()["sessions"][0]
     assert session["volume_kg"] == 0
-    assert session["reps_volume"] == 35
-    assert session["top_set_kg"] == 100.0
-    assert session["e1rm_kg"] is None  # only weighted set was reps > 12
+    assert session["reps_volume"] == 22
+    assert session["top_set_kg"] is None
+    assert session["e1rm_kg"] is None
 
     prs = auth_client.get(f"/api/exercises/{exercise['id']}/prs").json()
     assert prs["best_reps"]["reps"] == 12
-    assert prs["heaviest_weight"]["weight_kg"] == 100.0
+    assert prs["heaviest_weight"] is None
     assert prs["best_e1rm"] is None
     assert prs["best_session_volume"] is None
+
+
+def test_e1rm_excluded_above_12_reps_but_volume_counted(auth_client, exercise):
+    payload = _payload(exercise["id"])
+    payload["exercises"][0]["sets"] = [{"weight_kg": 100.0, "reps": 13}]
+    auth_client.post("/api/workouts", json=payload)
+
+    session = auth_client.get(f"/api/exercises/{exercise['id']}/progress").json()["sessions"][0]
+    assert session["volume_kg"] == 1300
+    assert session["top_set_kg"] == 100.0
+    assert session["e1rm_kg"] is None  # reps > 12 are excluded from e1RM only
+
+    prs = auth_client.get(f"/api/exercises/{exercise['id']}/prs").json()
+    assert prs["heaviest_weight"]["weight_kg"] == 100.0
+    assert prs["best_e1rm"] is None
+    assert prs["best_session_volume"]["volume_kg"] == 1300
+    assert prs["best_reps"]["reps"] == 13
 
 
 def test_last_performance_returns_latest_sets(auth_client, exercise):
