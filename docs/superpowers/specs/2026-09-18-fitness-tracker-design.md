@@ -114,6 +114,7 @@ Index: `(user_id, is_archived)`.
 | is_archived | BOOL | NOT NULL, DEFAULT false |
 
 Constraint: `uq_workout_templates_user_id_name_lower UNIQUE (user_id, name_lower)`.
+Index: `(user_id, is_archived)`.
 
 ### template_exercises
 | Column | Type | Constraints |
@@ -158,7 +159,7 @@ Constraint: `uq_workout_exercises_workout_position UNIQUE (workout_id, position)
 | set_number | INTEGER | NOT NULL, CHECK >= 1 |
 | weight_kg | REAL | NULL, CHECK > 0 (NULL = bodyweight) |
 | reps | INTEGER | NOT NULL, CHECK >= 1 |
-| rpe | REAL | NULL, CHECK 0–10 (0.5 steps) |
+| rpe | REAL | NULL, CHECK `rpe IS NULL OR 0 <= rpe <= 10`; 0.5-step granularity enforced by API validation (Pydantic), not the DB |
 | is_warmup | BOOL | NOT NULL, DEFAULT false |
 | is_drop_set | BOOL | NOT NULL, DEFAULT false (Phase 2) |
 | notes | TEXT | NULL (Phase 2) |
@@ -187,7 +188,7 @@ Constraint: `uq_sets_workout_exercise_set_number UNIQUE (workout_exercise_id, se
 - **progress_photos:** id, user_id FK CASCADE, taken_at NOT NULL, file_path TEXT NOT NULL
   (relative to the data volume), notes NULL.
 - **tags:** id, user_id FK CASCADE, name TEXT NOT NULL, `UNIQUE(user_id, name)`.
-- **workout_tags:** workout_id FK CASCADE + tag_id FK CASCADE, composite PK.
+- **workout_tags:** workout_id FK CASCADE + tag_id FK CASCADE, composite PK, index on `tag_id`.
 - **shoes:** id, user_id FK CASCADE, name TEXT NOT NULL, purchased_at DATE NULL,
   initial_distance_m REAL NOT NULL DEFAULT 0, retired_at DATE NULL, notes NULL.
 

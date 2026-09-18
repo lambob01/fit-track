@@ -324,8 +324,10 @@ class TimestampMixin:
 
 Key model requirements (all from the spec):
 - `Exercise`: `__table_args__ = (UniqueConstraint("user_id", "name_lower", name="uq_exercises_user_id_name_lower"), Index("ix_exercises_user_archived", "user_id", "is_archived"))`
-- `WorkoutTemplate`: the named unique constraint on `(user_id, name_lower)`, plus `is_archived`.
-- `SetEntry` (`__tablename__ = "sets"`): `weight_kg` nullable, CHECKs (`weight_kg > 0 OR weight_kg IS NULL`, `reps >= 1`, `rpe BETWEEN 0 AND 10`), unique `(workout_exercise_id, set_number)`.
+- `WorkoutTemplate`: the named unique constraint on `(user_id, name_lower)`, plus `is_archived` and `Index("ix_workout_templates_user_archived", "user_id", "is_archived")`.
+- `SetEntry` (`__tablename__ = "sets"`): `weight_kg` nullable, CHECKs (`weight_kg > 0 OR weight_kg IS NULL`, `reps >= 1`, `rpe IS NULL OR (rpe >= 0 AND rpe <= 10)`), unique `(workout_exercise_id, set_number)`. RPE 0.5-step granularity is enforced by Pydantic at the API layer, not the DB.
+- `workout_tags` association table: composite PK + `Index("ix_workout_tags_tag_id", "tag_id")`.
+- `cardio.py` must not import `phase2` at runtime: use `if TYPE_CHECKING: from app.models.phase2 import Shoe` and `shoe: Mapped["Shoe | None"] = relationship("Shoe")`.
 - FKs: all user-owned data `ON DELETE CASCADE`; `workouts.template_id` `ON DELETE SET NULL`; `cardio_activities.shoe_id` `ON DELETE SET NULL`; exercise FKs `ON DELETE RESTRICT`.
 - Phase 2 tables exactly as in spec section 5.
 - `backend/app/models/__init__.py` re-exports every model and `Base`.
@@ -351,6 +353,15 @@ git commit -m "feat(db): add SQLAlchemy models for MVP and Phase 2 tables"
 **Interfaces:**
 - Consumes: `app.database.Base.metadata`, `app.config.settings`.
 - Produces: a single initial revision; `alembic upgrade head` creates every table.
+
+- [ ] **Step 0: Apply pre-migration model updates**
+
+Before autogenerating, modify the Task 1.3 models:
+- `backend/app/models/workout.py` `SetEntry.__table_args__`: replace the RPE check with `CheckConstraint("rpe IS NULL OR (rpe >= 0 AND rpe <= 10)", name="ck_sets_rpe")` (explicit null handling; 0.5-step granularity is API-enforced).
+- `backend/app/models/workout.py` `WorkoutTemplate.__table_args__`: add `Index("ix_workout_templates_user_archived", "user_id", "is_archived")`.
+- `backend/app/models/phase2.py` `workout_tags`: add `Index("ix_workout_tags_tag_id", "tag_id")`.
+- `backend/app/models/cardio.py`: remove the runtime `from app.models.phase2 import Shoe`; add `if TYPE_CHECKING: from app.models.phase2 import Shoe` and change the mapper line to `shoe: Mapped["Shoe | None"] = relationship("Shoe")`.
+- Run `cd backend && uv run pytest tests/test_models.py -v` — expect 2 passed.
 
 - [ ] **Step 1: Initialize Alembic**
 
@@ -428,13 +439,54 @@ def test_migration_round_trip_and_constraints(tmp_path):
     except sqlite3.IntegrityError:
         raised = True
     assert raised, "duplicate (user_id, name_lower) must violate the unique constraint"
+
+    workout_id = str(uuid.uuid4())
+    con.execute(
+        "INSERT INTO workouts (id, user_id, performed_at, created_at, updated_at)"
+        " VALUES (?, ?, '2026-01-01', '2026-01-01', '2026-01-01')",
+        (workout_id, user_id),
+    )
+    workout_exercise_id = str(uuid.uuid4())
+    con.execute(
+        "INSERT INTO workout_exercises (id, workout_id, exercise_id, position, created_at, updated_at)"
+        " VALUES (?, ?, ?, 0, '2026-01-01', '2026-01-01')",
+        (workout_exercise_id, workout_id, first[0]),
+    )
+    con.commit()
+
+    set_columns = (
+        "id, workout_exercise_id, set_number, weight_kg, reps, rpe, is_warmup, is_drop_set,"
+        " notes, created_at, updated_at"
+    )
+
+    def try_insert_set(*, weight_kg, reps, parent=workout_exercise_id) -> bool:
+        try:
+            con.execute(
+                f"INSERT INTO sets ({set_columns})"
+                " VALUES (?,?,1,?,?,NULL,0,0,NULL,'2026-01-01','2026-01-01')",
+                (str(uuid.uuid4()), parent, weight_kg, reps),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            con.rollback()
+
+    assert not try_insert_set(weight_kg=80, reps=0), "reps=0 must violate the CHECK"
+    assert not try_insert_set(weight_kg=-1, reps=5), "weight=-1 must violate the CHECK"
+    assert not try_insert_set(weight_kg=80, reps=5, parent=str(uuid.uuid4())), (
+        "a set referencing a missing workout_exercise must violate the FK"
+    )
+    assert try_insert_set(weight_kg=None, reps=10), "bodyweight (NULL weight) must be allowed"
     con.close()
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd backend && uv run pytest tests/test_migrations.py -v`
-Expected: PASS (upgrade → downgrade → upgrade all exit 0; duplicate insert raises `IntegrityError`).
+Expected: PASS (upgrade → downgrade → upgrade all exit 0; duplicate unique, `reps=0`, `weight=-1`, missing-FK, and NULL-weight-set behaviors all as asserted).
+
+**Checkpoint (user-mandated):** report the generated `upgrade()` function before committing; do not commit until the controller confirms.
 
 - [ ] **Step 5: Commit**
 
