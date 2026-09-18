@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.security import hash_password
+from app.seed.__main__ import run as run_seed
 
 
 def _read_password() -> str:
@@ -30,6 +31,10 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("hash-password")
     backup = sub.add_parser("backup")
     backup.add_argument("--out", default=None)
+    seed = sub.add_parser("seed")
+    seed.add_argument("--days", type=int, default=30)
+    seed.add_argument("--seed", type=int, default=42)
+    seed.add_argument("--reset", action="store_true", help="delete the user's data first")
     args = parser.parse_args(argv)
 
     if args.command == "hash-password":
@@ -47,6 +52,8 @@ def main(argv: list[str] | None = None) -> None:
         with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
             src.backup(dst)
         print(target)
+    elif args.command == "seed":
+        run_seed(days=args.days, seed=args.seed, reset=args.reset)
 
 
 if __name__ == "__main__":
