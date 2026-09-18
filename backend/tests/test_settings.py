@@ -40,3 +40,19 @@ def test_patch_null_on_non_nullable_rejected(auth_client):
 def test_patch_invalid_timezone_and_unknown_field(auth_client):
     assert auth_client.patch("/api/settings", json={"timezone": "Mars/Olympus"}).status_code == 422
     assert auth_client.patch("/api/settings", json={"nope": 1}).status_code == 422
+
+
+def test_patch_rejects_out_of_domain_values(auth_client):
+    assert auth_client.patch("/api/settings", json={"unit_system": "banana"}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"max_hr": 99}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"max_hr": 251}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"goal_weight_kg": 0}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"goal_weight_kg": -5}).status_code == 422
+    assert auth_client.patch("/api/settings", json={"weekly_run_goal_m": 0}).status_code == 422
+
+
+def test_patch_weekly_run_goal_value_and_null(auth_client):
+    auth_client.patch("/api/settings", json={"weekly_run_goal_m": 20000})
+    assert auth_client.get("/api/settings").json()["weekly_run_goal_m"] == 20000
+    auth_client.patch("/api/settings", json={"weekly_run_goal_m": None})
+    assert auth_client.get("/api/settings").json()["weekly_run_goal_m"] is None

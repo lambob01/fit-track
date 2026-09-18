@@ -1,7 +1,8 @@
+from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SettingsOut(BaseModel):
@@ -19,11 +20,11 @@ class SettingsOut(BaseModel):
 class SettingsPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    unit_system: str | None = None
+    unit_system: Literal["metric", "imperial"] | None = None
     timezone: str | None = None
-    goal_weight_kg: float | None = None
-    weekly_run_goal_m: float | None = None
-    max_hr: int | None = None
+    goal_weight_kg: float | None = Field(default=None, gt=0)
+    weekly_run_goal_m: float | None = Field(default=None, gt=0)
+    max_hr: int | None = Field(default=None, ge=100, le=250)
 
     @field_validator("timezone")
     @classmethod
