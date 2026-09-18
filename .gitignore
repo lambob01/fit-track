@@ -12,6 +12,7 @@ frontend/src/types/openapi.d.ts
 
 # Env / data / build artifacts
 .env
+tracker.db*
 data/*
 !data/.gitkeep
 backend/app/static/*
