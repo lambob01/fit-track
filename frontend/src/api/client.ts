@@ -1,4 +1,9 @@
 import type {
+  CardioActivity,
+  CardioActivityInput,
+  CardioSummary,
+  CardioType,
+  CardioWeek,
   Dashboard,
   Exercise,
   ExerciseInput,
@@ -184,6 +189,42 @@ export interface WeightSeriesParams {
   from: string
   to: string
   bucket: WeightBucket
+}
+
+export interface CardioListParams {
+  type?: CardioType
+  limit?: number
+}
+
+export interface CardioSummaryParams {
+  from: string
+  to: string
+  type?: CardioType
+}
+
+export const cardioApi = {
+  list: (params: CardioListParams = {}) => {
+    const query = new URLSearchParams()
+    if (params.type !== undefined) query.set('type', params.type)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const queryString = query.toString()
+    const suffix = queryString === '' ? '' : `?${queryString}`
+    return api<CardioActivity[]>(`/api/cardio${suffix}`)
+  },
+  summary: (params: CardioSummaryParams) => {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    if (params.type !== undefined) query.set('type', params.type)
+    return api<CardioSummary>(`/api/cardio/summary?${query.toString()}`)
+  },
+  week: (weekStart?: string) => {
+    const suffix = weekStart === undefined ? '' : `?week_start=${weekStart}`
+    return api<CardioWeek>(`/api/cardio/week${suffix}`)
+  },
+  create: (input: CardioActivityInput) =>
+    api<CardioActivity>('/api/cardio', jsonRequest('POST', input)),
+  update: (id: string, patch: CardioActivityInput) =>
+    api<CardioActivity>(`/api/cardio/${id}`, jsonRequest('PATCH', patch)),
+  remove: (id: string) => api<void>(`/api/cardio/${id}`, { method: 'DELETE' }),
 }
 
 export const weightApi = {

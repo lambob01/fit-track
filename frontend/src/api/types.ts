@@ -46,13 +46,41 @@ export interface WorkoutSummary {
   volume_kg: number
 }
 
-export interface CardioWeek {
-  week_start: string
-  week_end: string
+export type CardioType = 'run' | 'cycle' | 'swim' | 'row' | 'other'
+
+export interface CardioActivity {
+  id: string
+  performed_at: string
+  type: CardioType
+  distance_m: number | null
+  duration_s: number
+  avg_hr: number | null
+  route_name: string | null
+  notes: string | null
+  source: string
+  pace_s_per_km: number | null
+}
+
+export interface CardioActivityInput {
+  performed_at: string
+  type?: CardioType
+  distance_m?: number | null
+  duration_s: number
+  avg_hr?: number | null
+  route_name?: string | null
+  notes?: string | null
+}
+
+export interface CardioSummary {
   total_distance_m: number
   total_duration_s: number
   activity_count: number
   avg_pace_s_per_km: number | null
+}
+
+export interface CardioWeek extends CardioSummary {
+  week_start: string
+  week_end: string
   weekly_goal_m: number | null
   goal_progress_pct: number | null
 }

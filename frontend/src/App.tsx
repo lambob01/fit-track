@@ -11,9 +11,9 @@ import { LiftingPage } from './features/lifting/LiftingPage'
 import { TemplateEditorPage } from './features/lifting/TemplateEditorPage'
 import { TemplateListPage } from './features/lifting/TemplateListPage'
 import { WorkoutLoggerPage } from './features/lifting/WorkoutLoggerPage'
+import { RunningPage } from './features/running/RunningPage'
 import { WeightPage } from './features/weight/WeightPage'
 import { LoginPage } from './pages/LoginPage'
-import { RunningPage } from './pages/RunningPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 const queryClient = new QueryClient({
