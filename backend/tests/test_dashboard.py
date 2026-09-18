@@ -14,6 +14,13 @@ def test_dashboard_empty(auth_client):
     assert body["week_cardio"]["goal_progress_pct"] is None
 
 
+def test_dashboard_goal_without_weight(auth_client):
+    auth_client.patch("/api/settings", json={"goal_weight_kg": 75.0})
+    body = auth_client.get("/api/dashboard").json()
+    assert body["latest_weight"] is None
+    assert body["weight_goal"] == {"goal_weight_kg": 75.0, "latest_weight_kg": None}
+
+
 def test_dashboard_populated(auth_client, exercise):
     auth_client.post(
         "/api/weight/entries",
@@ -46,6 +53,15 @@ def test_dashboard_populated(auth_client, exercise):
             "type": "run",
             "distance_m": 5000,
             "duration_s": 1500,
+        },
+    )
+    auth_client.post(
+        "/api/cardio",
+        json={
+            "performed_at": week_start.isoformat(),
+            "type": "cycle",
+            "distance_m": 20000,
+            "duration_s": 3600,
         },
     )
     body = auth_client.get("/api/dashboard").json()
