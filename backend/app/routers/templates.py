@@ -1,7 +1,7 @@
 from collections import defaultdict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -94,24 +94,22 @@ def _template_out(db: Session, template: WorkoutTemplate) -> TemplateOut:
     )
 
 
-def _commit_or_409(db: Session, detail: str = "Template already exists") -> None:
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(status_code=409, detail=detail) from exc
-
-
 @router.get("", response_model=list[TemplateOut])
 def list_templates(
     include_archived: bool = False,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[TemplateOut]:
     statement = select(WorkoutTemplate).where(WorkoutTemplate.user_id == user.id)
     if not include_archived:
         statement = statement.where(WorkoutTemplate.is_archived.is_(False))
-    templates = list(db.scalars(statement.order_by(WorkoutTemplate.name_lower)))
+    templates = list(
+        db.scalars(
+            statement.order_by(WorkoutTemplate.name_lower).limit(limit).offset(offset)
+        )
+    )
     grouped = _exercise_map(db, [template.id for template in templates])
     return [
         TemplateOut(
@@ -142,9 +140,13 @@ def create_template(
         notes=payload.notes,
     )
     db.add(template)
-    db.flush()
-    _replace_exercises(db, template, payload.exercises)
-    _commit_or_409(db)
+    try:
+        db.flush()
+        _replace_exercises(db, template, payload.exercises)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Template already exists") from exc
     return _template_out(db, template)
 
 
@@ -165,21 +167,28 @@ def patch_template(
     user: User = Depends(get_current_user),
 ) -> TemplateOut:
     template = _get_owned(db, user, template_id)
-    if "name" in payload.model_fields_set and payload.name is not None:
-        name_lower = payload.name.lower()
-        existing = _find_by_name(db, user, name_lower)
-        if existing is not None and existing.id != template.id:
-            raise HTTPException(status_code=409, detail="Template already exists")
-        template.name = payload.name
-        template.name_lower = name_lower
-    if "notes" in payload.model_fields_set:
-        template.notes = payload.notes
-    if "is_archived" in payload.model_fields_set and payload.is_archived is not None:
-        template.is_archived = payload.is_archived
-    if "exercises" in payload.model_fields_set and payload.exercises is not None:
-        _validate_exercises(db, user, payload.exercises)
-        _replace_exercises(db, template, payload.exercises)
-    _commit_or_409(db)
+    try:
+        if "name" in payload.model_fields_set and payload.name is not None:
+            name_lower = payload.name.lower()
+            existing = _find_by_name(db, user, name_lower)
+            if existing is not None and existing.id != template.id:
+                raise HTTPException(status_code=409, detail="Template already exists")
+            template.name = payload.name
+            template.name_lower = name_lower
+        if "notes" in payload.model_fields_set:
+            template.notes = payload.notes
+        if "is_archived" in payload.model_fields_set and payload.is_archived is not None:
+            template.is_archived = payload.is_archived
+        if "exercises" in payload.model_fields_set and payload.exercises is not None:
+            _validate_exercises(db, user, payload.exercises)
+            _replace_exercises(db, template, payload.exercises)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Template already exists") from exc
     return _template_out(db, template)
 
 
