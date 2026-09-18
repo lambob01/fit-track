@@ -67,3 +67,10 @@ def auth_client(client):
     )
     assert response.status_code == 204
     return client
+
+
+@pytest.fixture()
+def exercise(auth_client):
+    return auth_client.post(
+        "/api/exercises", json={"name": "Bench Press", "category": "push"}
+    ).json()
