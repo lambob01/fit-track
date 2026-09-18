@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Text,
     UniqueConstraint,
     text,
@@ -62,6 +63,8 @@ class WorkoutTag(Base):
     tag_id: Mapped[UUID] = mapped_column(
         ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
     )
+
+    __table_args__ = (Index("ix_workout_tags_tag_id", "tag_id"),)
 
 
 workout_tags = WorkoutTag.__table__

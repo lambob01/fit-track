@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text
@@ -6,7 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
-from app.models.phase2 import Shoe
+
+if TYPE_CHECKING:
+    from app.models.phase2 import Shoe
 
 
 class CardioActivity(UUIDMixin, TimestampMixin, Base):
@@ -31,7 +34,7 @@ class CardioActivity(UUIDMixin, TimestampMixin, Base):
         Text, nullable=False, server_default="manual", default="manual"
     )
 
-    shoe: Mapped[Shoe | None] = relationship()
+    shoe: Mapped["Shoe | None"] = relationship("Shoe")
 
     __table_args__ = (
         CheckConstraint(

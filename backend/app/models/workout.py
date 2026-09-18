@@ -36,6 +36,7 @@ class WorkoutTemplate(UUIDMixin, TimestampMixin, Base):
         UniqueConstraint(
             "user_id", "name_lower", name="uq_workout_templates_user_id_name_lower"
         ),
+        Index("ix_workout_templates_user_archived", "user_id", "is_archived"),
     )
 
 
@@ -133,5 +134,5 @@ class SetEntry(UUIDMixin, TimestampMixin, Base):
         CheckConstraint("set_number >= 1", name="ck_sets_set_number"),
         CheckConstraint("weight_kg > 0 OR weight_kg IS NULL", name="ck_sets_weight_kg"),
         CheckConstraint("reps >= 1", name="ck_sets_reps"),
-        CheckConstraint("rpe BETWEEN 0 AND 10", name="ck_sets_rpe"),
+        CheckConstraint("rpe IS NULL OR (rpe >= 0 AND rpe <= 10)", name="ck_sets_rpe"),
     )
