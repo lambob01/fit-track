@@ -13,6 +13,12 @@ frontend/src/types/openapi.d.ts
 # Env / data / build artifacts
 .env
 tracker.db*
+*.db
+*.db-shm
+*.db-wal
+scratch.db*
+.env.*
+!.env.example
 data/*
 !data/.gitkeep
 backend/app/static/*
