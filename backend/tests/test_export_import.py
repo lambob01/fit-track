@@ -62,6 +62,36 @@ def test_import_rejects_oversized_body(auth_client, monkeypatch):
     assert response.status_code == 413
 
 
+def test_import_rejects_oversized_chunked_body(auth_client, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "import_max_bytes", 512)
+
+    def chunks():
+        yield b'{"blob": "'
+        yield b"x" * 1024
+        yield b'"}'
+
+    response = auth_client.post(
+        "/api/import/json",
+        content=chunks(),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
+def test_import_rejects_malformed_id(auth_client):
+    envelope = {
+        "format": "tracker-export", "version": 1, "exported_at": "2026-09-18T00:00:00Z",
+        "settings": {}, "data": {
+            "workouts": [{"id": "not-a-uuid", "performed_at": "2026-09-01T00:00:00Z",
+                          "name": None, "template_id": None, "notes": None}],
+        },
+    }
+    response = auth_client.post("/api/import/json", json=envelope)
+    assert response.status_code == 422
+    assert auth_client.get("/api/workouts").json() == []
+
+
 def test_csv_export_one_endpoint_per_entity(auth_client, exercise):
     auth_client.post(
         "/api/weight/entries",

@@ -258,10 +258,18 @@ def _upsert_row(
     """Returns (created, updated, reassigned)."""
     model = ENTITY_MODELS[entity]
     pk_columns = _primary_key_columns(model)
+    pk_values_list: list[Any] = []
     for column in pk_columns:
-        if row.get(column.key) is None:
+        raw = row.get(column.key)
+        if raw is None:
             raise ImportValidationError(f"{entity} row is missing {column.key}")
-    pk_values = tuple(_parse_value(column, row[column.key]) for column in pk_columns)
+        try:
+            pk_values_list.append(_parse_value(column, raw))
+        except (TypeError, ValueError) as exc:
+            raise ImportValidationError(
+                f"Invalid value for {entity}.{column.key}: {raw!r}"
+            ) from exc
+    pk_values = tuple(pk_values_list)
     pk_lookup = pk_values[0] if len(pk_values) == 1 else pk_values
     existing = db.get(model, pk_lookup)
 

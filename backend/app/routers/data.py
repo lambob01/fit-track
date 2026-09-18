@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.database import get_db
@@ -75,7 +76,7 @@ async def import_json(
         raise HTTPException(status_code=422, detail="Unsupported export format or version")
 
     try:
-        created, updated = import_envelope(db, user, payload)
+        created, updated = await run_in_threadpool(import_envelope, db, user, payload)
     except ImportValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"created": created, "updated": updated}
