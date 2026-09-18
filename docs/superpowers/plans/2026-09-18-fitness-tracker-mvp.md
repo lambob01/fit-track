@@ -553,7 +553,7 @@ def db(engine):
 @pytest.fixture()
 def user(db):
     u = User(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         username="albert",
         password_hash=hash_password(TEST_PASSWORD),
         unit_system="metric",
@@ -1332,9 +1332,9 @@ def test_create_and_duplicate(auth_client):
 
 
 def test_duplicate_name_violates_db_constraint(db, user):
-    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="Bench Press", name_lower="bench press"))
+    db.add(Exercise(id=uuid.uuid4(), user_id=user.id, name="Bench Press", name_lower="bench press"))
     db.commit()
-    db.add(Exercise(id=str(uuid.uuid4()), user_id=user.id, name="bench press", name_lower="bench press"))
+    db.add(Exercise(id=uuid.uuid4(), user_id=user.id, name="bench press", name_lower="bench press"))
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
@@ -1580,13 +1580,13 @@ def test_workout_upsert_replay_is_idempotent(auth_client, exercise):
 
 def test_workout_uuid_owned_by_other_user_forbidden(auth_client, db, exercise):
     other = User(
-        id=str(uuid.uuid4()), username="other", password_hash="x",
+        id=uuid.uuid4(), username="other", password_hash="x",
         unit_system="metric", timezone="UTC",
     )
     db.add(other)
     db.commit()
     workout = Workout(
-        id=str(uuid.uuid4()), user_id=other.id,
+        id=uuid.uuid4(), user_id=other.id,
         performed_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
     )
     db.add(workout)
@@ -2194,7 +2194,7 @@ def _fresh_session():
 
 def _seed_and_snapshot(seed=42):
     db, engine = _fresh_session()
-    user = User(id=str(uuid.uuid4()), username=f"u{seed}", password_hash="x")
+    user = User(id=uuid.uuid4(), username=f"u{seed}", password_hash="x")
     db.add(user)
     db.commit()
     seed_exercises(db, user.id)
