@@ -80,6 +80,173 @@ export interface WeightEntryInput {
   notes: string | null
 }
 
+export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'other'
+
+export interface Exercise {
+  id: string
+  name: string
+  muscle_group: string
+  category: ExerciseCategory
+  equipment: string
+  is_compound: boolean
+  is_archived: boolean
+}
+
+export interface ExerciseInput {
+  name: string
+  muscle_group?: string
+  category?: ExerciseCategory
+  equipment?: string
+  is_compound?: boolean
+}
+
+export interface ExercisePatch {
+  name?: string
+  muscle_group?: string
+  category?: ExerciseCategory
+  equipment?: string
+  is_compound?: boolean
+  is_archived?: boolean
+}
+
+export interface ExerciseResolveResult {
+  id: string
+  name: string
+  is_archived: boolean
+  created: boolean
+}
+
+export interface WorkoutSet {
+  id: string
+  set_number: number
+  weight_kg: number | null
+  reps: number
+  rpe: number | null
+  is_warmup: boolean
+  is_drop_set: boolean
+  notes: string | null
+}
+
+export interface SetInput {
+  id?: string
+  set_number?: number
+  weight_kg?: number | null
+  reps: number
+  rpe?: number | null
+  is_warmup?: boolean
+  is_drop_set?: boolean
+  notes?: string | null
+}
+
+export interface SetPatch {
+  set_number?: number
+  weight_kg?: number | null
+  reps?: number
+  rpe?: number | null
+  is_warmup?: boolean
+}
+
+export interface WorkoutExercise {
+  id: string
+  exercise_id: string
+  position: number
+  notes: string | null
+  superset_group: number | null
+  sets: WorkoutSet[]
+}
+
+export interface WorkoutExerciseInput {
+  id?: string
+  exercise_id: string
+  position: number
+  notes?: string | null
+  superset_group?: number | null
+  sets?: SetInput[]
+}
+
+export interface Workout {
+  id: string
+  performed_at: string
+  name: string | null
+  template_id: string | null
+  notes: string | null
+  exercises: WorkoutExercise[]
+}
+
+export interface WorkoutInput {
+  id?: string
+  performed_at: string
+  name?: string | null
+  template_id?: string | null
+  notes?: string | null
+  exercises?: WorkoutExerciseInput[]
+}
+
+export interface WorkoutPatch {
+  performed_at?: string
+  name?: string | null
+  template_id?: string | null
+  notes?: string | null
+}
+
+export interface LastPerformance {
+  workout_id: string
+  workout_exercise_id: string
+  performed_at: string
+  sets: WorkoutSet[]
+}
+
+export interface TemplateExercise {
+  id: string
+  exercise_id: string
+  position: number
+  target_sets: number | null
+  target_reps: number | null
+  target_weight_kg: number | null
+}
+
+export interface TemplateExerciseInput {
+  exercise_id: string
+  position: number
+  target_sets?: number | null
+  target_reps?: number | null
+  target_weight_kg?: number | null
+}
+
+export interface Template {
+  id: string
+  name: string
+  notes: string | null
+  is_archived: boolean
+  exercises: TemplateExercise[]
+}
+
+export interface TemplateInput {
+  name: string
+  notes?: string | null
+  exercises: TemplateExerciseInput[]
+}
+
+export interface TemplatePatch {
+  name?: string
+  notes?: string | null
+  is_archived?: boolean
+  exercises?: TemplateExerciseInput[]
+}
+
+export interface PlannedExercise {
+  exercise_id: string
+  position: number
+  sets: number
+  reps: number | null
+  weight_kg: number | null
+}
+
+export interface StartFromTemplateResult {
+  workout: Workout
+  planned: PlannedExercise[]
+}
+
 export type WeightBucket = 'day' | 'week' | 'month' | 'year'
 
 export interface WeightSeriesPoint {
