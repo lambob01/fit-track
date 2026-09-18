@@ -9,6 +9,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 from app.security import verify_password
+from app.services.users import ensure_default_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -32,6 +33,7 @@ class UserOut(BaseModel):
 
 @router.post("/login", status_code=204)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> None:
+    ensure_default_user(db)
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
