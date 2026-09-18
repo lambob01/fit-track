@@ -9,7 +9,16 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Exercise, SetEntry, User, Workout, WorkoutExercise, WorkoutTemplate
+from app.models import (
+    Exercise,
+    SetEntry,
+    TemplateExercise,
+    User,
+    Workout,
+    WorkoutExercise,
+    WorkoutTemplate,
+)
+from app.schemas.template import PlannedOut, StartFromTemplateOut
 from app.schemas.workout import (
     E1rmPrOut,
     LastPerformanceOut,
@@ -305,6 +314,62 @@ def list_workouts(
         )
         for workout in workouts
     ]
+
+
+@router.post(
+    "/api/workouts/from-template/{template_id}",
+    response_model=StartFromTemplateOut,
+    status_code=201,
+)
+def start_from_template(
+    template_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> StartFromTemplateOut:
+    template = db.get(WorkoutTemplate, template_id)
+    if template is None or template.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Template not found")
+    template_items = list(
+        db.scalars(
+            select(TemplateExercise)
+            .where(TemplateExercise.template_id == template.id)
+            .order_by(TemplateExercise.position)
+        )
+    )
+    workout = Workout(
+        user_id=user.id,
+        performed_at=datetime.now(UTC),
+        name=template.name,
+        template_id=template.id,
+    )
+    db.add(workout)
+    db.flush()
+    for item in template_items:
+        db.add(
+            WorkoutExercise(
+                workout_id=workout.id,
+                exercise_id=item.exercise_id,
+                position=item.position,
+            )
+        )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Conflict with existing data") from exc
+    return StartFromTemplateOut(
+        workout=_workout_out(db, workout),
+        planned=[
+            PlannedOut(
+                exercise_id=item.exercise_id,
+                position=item.position,
+                sets=item.target_sets or 0,
+                reps=item.target_reps,
+                weight_kg=item.target_weight_kg,
+            )
+            for item in template_items
+        ],
+    )
 
 
 @router.get("/api/workouts/{workout_id}", response_model=WorkoutOut)
