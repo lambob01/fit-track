@@ -3,6 +3,8 @@ import type {
   Exercise,
   ExerciseInput,
   ExercisePatch,
+  ExerciseProgress,
+  ExercisePrs,
   ExerciseResolveResult,
   LastPerformance,
   LoginRequest,
@@ -113,6 +115,11 @@ export interface ExerciseListParams {
   limit?: number
 }
 
+export interface ExerciseProgressParams {
+  from: string
+  to: string
+}
+
 export const exercisesApi = {
   list: (params: ExerciseListParams = {}) => {
     const query = new URLSearchParams()
@@ -131,6 +138,11 @@ export const exercisesApi = {
     api<ExerciseResolveResult>('/api/exercises/resolve', jsonRequest('POST', { name })),
   update: (id: string, patch: ExercisePatch) =>
     api<Exercise>(`/api/exercises/${id}`, jsonRequest('PATCH', patch)),
+  progress: (id: string, params: ExerciseProgressParams) => {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    return api<ExerciseProgress>(`/api/exercises/${id}/progress?${query.toString()}`)
+  },
+  prs: (id: string) => api<ExercisePrs>(`/api/exercises/${id}/prs`),
   lastPerformance: (id: string) =>
     api<LastPerformance | null>(`/api/exercises/${id}/last-performance`),
 }

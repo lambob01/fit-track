@@ -196,6 +196,57 @@ export interface LastPerformance {
   sets: WorkoutSet[]
 }
 
+export interface ProgressSession {
+  workout_id: string
+  performed_at: string
+  top_set_kg: number | null
+  e1rm_kg: number | null
+  volume_kg: number
+  reps_volume: number
+}
+
+export interface ExerciseProgress {
+  sessions: ProgressSession[]
+}
+
+export interface WeightPr {
+  weight_kg: number
+  reps: number
+  set_id: string
+  workout_id: string
+  performed_at: string
+}
+
+export interface E1rmPr {
+  e1rm_kg: number
+  weight_kg: number
+  reps: number
+  set_id: string
+  workout_id: string
+  performed_at: string
+}
+
+export interface RepsPr {
+  reps: number
+  weight_kg: number | null
+  set_id: string
+  workout_id: string
+  performed_at: string
+}
+
+export interface SessionVolumePr {
+  volume_kg: number
+  workout_id: string
+  performed_at: string
+}
+
+export interface ExercisePrs {
+  heaviest_weight: WeightPr | null
+  best_e1rm: E1rmPr | null
+  best_reps: RepsPr | null
+  best_session_volume: SessionVolumePr | null
+}
+
 export interface TemplateExercise {
   id: string
   exercise_id: string
