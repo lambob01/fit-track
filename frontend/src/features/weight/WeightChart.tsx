@@ -86,6 +86,7 @@ const WEIGHT_KEYS = [
 const ROW_KEYS = [...WEIGHT_KEYS, 'bmi'] as const
 
 const WEEKLY_HORIZON_DAYS = 12 * DAYS_PER_WEEK
+const RATE_PROJECTION_HORIZON_DAYS = 4 * DAYS_PER_WEEK
 
 // eslint-disable-next-line react-refresh/only-export-components -- pure horizon helper is unit-tested separately
 export function buildOverlayHorizons(
@@ -109,7 +110,11 @@ export function buildOverlayHorizons(
     requiredLine.length > 0
       ? dateKeyToTimestamp(requiredLine[requiredLine.length - 1].date, options.timezone)
       : null
-  const projectionHorizon = dated ?? rangeTo + WEEKLY_HORIZON_DAYS * DAY_MS
+  const naturalHorizon = dated ?? rangeTo + WEEKLY_HORIZON_DAYS * DAY_MS
+  const projectionHorizon = Math.min(
+    naturalHorizon,
+    latestTs + RATE_PROJECTION_HORIZON_DAYS * DAY_MS,
+  )
 
   const monthly = series.goals.monthly
   const monthlyHorizon =
@@ -128,8 +133,16 @@ export function buildOverlayHorizons(
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- pure x-domain helper is unit-tested separately
-export function buildXDomain(range: DateRange, horizons: OverlayHorizons): [number, number] {
-  const from = new Date(range.from).getTime()
+export function buildXDomain(
+  range: DateRange,
+  horizons: OverlayHorizons,
+  rows: readonly { ts: number }[] = [],
+): [number, number] {
+  const rangeFrom = new Date(range.from).getTime()
+  const from =
+    rows.length === 0
+      ? rangeFrom
+      : Math.max(rangeFrom, Math.min(...rows.map((row) => row.ts)))
   const to = Math.max(
     new Date(range.to).getTime(),
     ...[horizons.weekly, horizons.monthly, horizons.dated].filter(
@@ -424,7 +437,7 @@ export function WeightChart({
   }
 
   const data = series === undefined ? [] : buildChartData(series, buildOptions)
-  const xDomain = buildXDomain(range, buildOverlayHorizons(series, buildOptions))
+  const xDomain = buildXDomain(range, buildOverlayHorizons(series, buildOptions), data)
 
   const showRequiredRateLine = data.some((row) => row.requiredRate !== null)
   const showWeeklyLine = data.some((row) => row.weeklyProjection !== null)

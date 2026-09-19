@@ -18,8 +18,11 @@ const RANGE: DateRange = {
 }
 const RANGE_FROM = Date.parse(RANGE.from)
 const RANGE_TO = Date.parse(RANGE.to)
-const START_TS = Date.parse('2026-09-07T08:00:00.000Z')
-const WEEKLY_HORIZON = RANGE_TO + 12 * DAYS_PER_WEEK * DAY_MS
+const FIRST_POINT_ISO = '2026-09-02T08:00:00.000Z'
+const LATEST_ISO = '2026-09-07T08:00:00.000Z'
+const FIRST_POINT_TS = Date.parse(FIRST_POINT_ISO)
+const LATEST_TS = Date.parse(LATEST_ISO)
+const RATE_CAP_HORIZON = LATEST_TS + 4 * DAYS_PER_WEEK * DAY_MS
 
 const DATED_LINE = [
   { date: '2026-09-05', weight_kg: 79 },
@@ -38,12 +41,12 @@ function makeSeries(overrides: Partial<WeightSeries> = {}): WeightSeries {
     from: RANGE.from,
     to: RANGE.to,
     points: [
-      { bucket_start: '2026-09-02', measured_at: '2026-09-02T08:00:00.000Z', weight_kg: 80 },
-      { bucket_start: '2026-09-07', measured_at: '2026-09-07T08:00:00.000Z', weight_kg: 79.5 },
+      { bucket_start: '2026-09-02', measured_at: FIRST_POINT_ISO, weight_kg: 80 },
+      { bucket_start: '2026-09-07', measured_at: LATEST_ISO, weight_kg: 79.5 },
     ],
     moving_average: [
-      { measured_at: '2026-09-02T08:00:00.000Z', value: 80.1 },
-      { measured_at: '2026-09-07T08:00:00.000Z', value: 79.6 },
+      { measured_at: FIRST_POINT_ISO, value: 80.1 },
+      { measured_at: LATEST_ISO, value: 79.6 },
     ],
     trend: { slope_per_day: -0.07, intercept: 80, from_value: 80.1, to_value: 79.6 },
     goal_weight_kg: 75,
@@ -116,7 +119,7 @@ describe('buildChartData range clipping', () => {
 
     expect(data).toEqual([
       {
-        ts: Date.parse('2026-09-02T08:00:00.000Z'),
+        ts: FIRST_POINT_TS,
         weight: 80,
         average: 80.1,
         trend: 80.1,
@@ -126,7 +129,7 @@ describe('buildChartData range clipping', () => {
         bmi: null,
       },
       {
-        ts: START_TS,
+        ts: LATEST_TS,
         weight: 79.5,
         average: 79.6,
         trend: 79.6,
@@ -187,36 +190,38 @@ describe('buildChartData overlay toggles', () => {
     expect(rowAt(data, dateKeyToTimestamp('2026-09-15', TIMEZONE))?.requiredRate).toBe(77)
   })
 
-  it('extends the weekly projection twelve weeks past the range end', () => {
+  it('caps the weekly rate projection at four weeks past the latest entry', () => {
     const data = build(makeSeries(), { showWeekly: true })
 
-    expect(Math.max(...data.map((row) => row.ts))).toBe(WEEKLY_HORIZON)
-    expect(rowAt(data, WEEKLY_HORIZON)?.weeklyProjection).toBeCloseTo(
-      79.5 + (RATE / DAYS_PER_WEEK) * ((WEEKLY_HORIZON - START_TS) / DAY_MS),
+    expect(Math.max(...data.map((row) => row.ts))).toBe(RATE_CAP_HORIZON)
+    expect(rowAt(data, RATE_CAP_HORIZON)?.weeklyProjection).toBeCloseTo(
+      79.5 + (RATE / DAYS_PER_WEEK) * ((RATE_CAP_HORIZON - LATEST_TS) / DAY_MS),
       6,
     )
-    expect(rowAt(data, START_TS)?.weeklyProjection).toBeCloseTo(79.5, 6)
+    expect(rowAt(data, LATEST_TS)?.weeklyProjection).toBeCloseTo(79.5, 6)
   })
 
-  it('uses the dated target as the weekly horizon', () => {
-    const data = build(makeSeries({ required_rate_line: DATED_LINE }), { showWeekly: true })
+  it('caps the weekly rate projection while the dated line keeps its target horizon', () => {
+    const data = build(makeSeries({ required_rate_line: DATED_LINE }), {
+      showWeekly: true,
+      showDated: true,
+    })
 
+    const projectionRows = data.filter((row) => row.weeklyProjection !== null)
+    expect(Math.max(...projectionRows.map((row) => row.ts))).toBe(RATE_CAP_HORIZON)
     expect(Math.max(...data.map((row) => row.ts))).toBe(DATED_HORIZON)
-    expect(rowAt(data, DATED_HORIZON)?.weeklyProjection).toBeCloseTo(
-      79.5 + (RATE / DAYS_PER_WEEK) * ((DATED_HORIZON - START_TS) / DAY_MS),
-      6,
-    )
+    expect(rowAt(data, DATED_HORIZON)?.requiredRate).toBe(73)
   })
 
-  it('projects the monthly rate to the projection horizon', () => {
+  it('projects the monthly rate only to the four-week cap', () => {
     const data = build(makeMonthlySeries('rate', MONTHLY_RATE), { showMonthly: true })
 
-    expect(Math.max(...data.map((row) => row.ts))).toBe(WEEKLY_HORIZON)
-    expect(rowAt(data, WEEKLY_HORIZON)?.monthlyProjection).toBeCloseTo(
-      79.5 + (MONTHLY_RATE / DAYS_PER_MONTH) * ((WEEKLY_HORIZON - START_TS) / DAY_MS),
+    expect(Math.max(...data.map((row) => row.ts))).toBe(RATE_CAP_HORIZON)
+    expect(rowAt(data, RATE_CAP_HORIZON)?.monthlyProjection).toBeCloseTo(
+      79.5 + (MONTHLY_RATE / DAYS_PER_MONTH) * ((RATE_CAP_HORIZON - LATEST_TS) / DAY_MS),
       6,
     )
-    expect(rowAt(data, START_TS)?.monthlyProjection).toBeCloseTo(79.5, 6)
+    expect(rowAt(data, LATEST_TS)?.monthlyProjection).toBeCloseTo(79.5, 6)
   })
 
   it('draws the monthly target line to the end of the current local month', () => {
@@ -230,7 +235,7 @@ describe('buildChartData overlay toggles', () => {
 
     expect(Math.max(...data.map((row) => row.ts))).toBe(monthEnd)
     expect(rowAt(data, monthEnd)?.monthlyProjection).toBeCloseTo(76, 6)
-    expect(rowAt(data, START_TS)?.monthlyProjection).toBeCloseTo(79.5, 6)
+    expect(rowAt(data, LATEST_TS)?.monthlyProjection).toBeCloseTo(79.5, 6)
   })
 
   it('clips actual series rows even when an overlay extends the axis', () => {
@@ -313,19 +318,33 @@ describe('buildOverlayHorizons', () => {
     ).toBe(DATED_HORIZON)
   })
 
-  it('returns the twelve-week horizon while no dated target exists', () => {
+  it('caps the weekly rate horizon at four weeks past the latest entry', () => {
     expect(buildOverlayHorizons(makeSeries(), { ...BASE, showWeekly: true }).weekly).toBe(
-      WEEKLY_HORIZON,
+      RATE_CAP_HORIZON,
     )
   })
 
-  it('uses the dated target as the projection horizon when one exists', () => {
+  it('caps the weekly rate horizon even when a later dated target exists', () => {
     expect(
       buildOverlayHorizons(makeSeries({ required_rate_line: DATED_LINE }), {
         ...BASE,
         showWeekly: true,
       }).weekly,
-    ).toBe(DATED_HORIZON)
+    ).toBe(RATE_CAP_HORIZON)
+  })
+
+  it('bounds the weekly rate horizon by a nearer dated target', () => {
+    const earlyLine = [
+      { date: '2026-09-08', weight_kg: 79.4 },
+      { date: '2026-09-12', weight_kg: 79 },
+    ]
+
+    expect(
+      buildOverlayHorizons(makeSeries({ required_rate_line: earlyLine }), {
+        ...BASE,
+        showWeekly: true,
+      }).weekly,
+    ).toBe(dateKeyToTimestamp('2026-09-12', TIMEZONE))
   })
 
   it('returns the end of the current local month for a monthly target', () => {
@@ -338,13 +357,13 @@ describe('buildOverlayHorizons', () => {
     expect(horizons.monthly).toBe(Date.parse('2026-09-30T23:59:59.999Z'))
   })
 
-  it('returns the projection horizon for a monthly rate', () => {
+  it('returns the four-week cap for a monthly rate', () => {
     const horizons = buildOverlayHorizons(makeMonthlySeries('rate', MONTHLY_RATE), {
       ...BASE,
       showMonthly: true,
     })
 
-    expect(horizons.monthly).toBe(WEEKLY_HORIZON)
+    expect(horizons.monthly).toBe(RATE_CAP_HORIZON)
   })
 
   it('returns no horizons for a range with no points', () => {
@@ -361,22 +380,37 @@ describe('buildOverlayHorizons', () => {
 })
 
 describe('buildXDomain', () => {
-  it('returns the exact range when no overlay horizons are enabled', () => {
-    expect(buildXDomain(RANGE, { weekly: null, monthly: null, dated: null })).toEqual([
+  const NO_HORIZONS = { weekly: null, monthly: null, dated: null }
+
+  it('returns the exact range when there are no rows and no overlay horizons', () => {
+    expect(buildXDomain(RANGE, NO_HORIZONS)).toEqual([RANGE_FROM, RANGE_TO])
+  })
+
+  it('starts at the first data point when data begins after the range start', () => {
+    const rows = [{ ts: FIRST_POINT_TS }, { ts: LATEST_TS }]
+
+    expect(buildXDomain(RANGE, NO_HORIZONS, rows)).toEqual([FIRST_POINT_TS, RANGE_TO])
+  })
+
+  it('keeps the range start when the first data point sits at or before it', () => {
+    expect(buildXDomain(RANGE, NO_HORIZONS, [{ ts: RANGE_FROM }, { ts: LATEST_TS }])).toEqual([
       RANGE_FROM,
       RANGE_TO,
     ])
+    expect(
+      buildXDomain(RANGE, NO_HORIZONS, [{ ts: RANGE_FROM - DAY_MS }, { ts: LATEST_TS }]),
+    ).toEqual([RANGE_FROM, RANGE_TO])
   })
 
-  it('extends to the weekly projection horizon', () => {
-    expect(buildXDomain(RANGE, { weekly: WEEKLY_HORIZON, monthly: null, dated: null })).toEqual([
+  it('extends to the weekly rate cap horizon', () => {
+    expect(buildXDomain(RANGE, { ...NO_HORIZONS, weekly: RATE_CAP_HORIZON })).toEqual([
       RANGE_FROM,
-      WEEKLY_HORIZON,
+      RATE_CAP_HORIZON,
     ])
   })
 
   it('extends to the dated target horizon', () => {
-    expect(buildXDomain(RANGE, { weekly: null, monthly: null, dated: DATED_HORIZON })).toEqual([
+    expect(buildXDomain(RANGE, { ...NO_HORIZONS, dated: DATED_HORIZON })).toEqual([
       RANGE_FROM,
       DATED_HORIZON,
     ])
@@ -385,7 +419,7 @@ describe('buildXDomain', () => {
   it('extends to the monthly target horizon', () => {
     const monthlyHorizon = Date.parse('2026-10-31T23:59:59.999Z')
 
-    expect(buildXDomain(RANGE, { weekly: null, monthly: monthlyHorizon, dated: null })).toEqual([
+    expect(buildXDomain(RANGE, { ...NO_HORIZONS, monthly: monthlyHorizon })).toEqual([
       RANGE_FROM,
       monthlyHorizon,
     ])
@@ -399,5 +433,34 @@ describe('buildXDomain', () => {
         dated: RANGE_TO - 2 * DAY_MS,
       }),
     ).toEqual([RANGE_FROM, RANGE_TO])
+  })
+
+  it('combines a later data start with an overlay horizon', () => {
+    const rows = [{ ts: FIRST_POINT_TS }, { ts: LATEST_TS }]
+
+    expect(buildXDomain(RANGE, { ...NO_HORIZONS, weekly: RATE_CAP_HORIZON }, rows)).toEqual([
+      FIRST_POINT_TS,
+      RATE_CAP_HORIZON,
+    ])
+  })
+
+  it('uses built chart data to start at the first data row and end at the capped horizon', () => {
+    const series = makeSeries()
+    const options: BuildOptions = {
+      range: RANGE,
+      showWeight: true,
+      showAverage: true,
+      showTrend: true,
+      showBmi: false,
+      showWeekly: true,
+      showMonthly: false,
+      showDated: false,
+      heightCm: null,
+      timezone: TIMEZONE,
+    }
+
+    expect(
+      buildXDomain(RANGE, buildOverlayHorizons(series, options), buildChartData(series, options)),
+    ).toEqual([FIRST_POINT_TS, RATE_CAP_HORIZON])
   })
 })
