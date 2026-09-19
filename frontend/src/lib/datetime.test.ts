@@ -6,6 +6,7 @@ import {
   formatLocal,
   fromLocalDateTimeInput,
   localDateKey,
+  localMonthEndTs,
   localWeekRange,
   mondayOfDateKey,
   toLocalDateTimeInput,
@@ -81,6 +82,30 @@ describe('calendar date keys', () => {
       const instant = new Date(dateKeyToTimestamp('2026-01-05', timezone)).toISOString()
       expect(formatLocal(instant, timezone, 'yyyy-MM-dd HH:mm')).toBe('2026-01-05 12:00')
     }
+  })
+})
+
+describe('localMonthEndTs', () => {
+  it('returns the last instant of the month in UTC', () => {
+    expect(localMonthEndTs('UTC', new Date('2026-09-19T12:00:00Z'))).toBe(
+      Date.parse('2026-09-30T23:59:59.999Z'),
+    )
+  })
+
+  it('converts the local month end for a non-UTC timezone', () => {
+    expect(localMonthEndTs('Asia/Tokyo', new Date('2026-09-19T12:00:00Z'))).toBe(
+      Date.parse('2026-09-30T14:59:59.999Z'),
+    )
+  })
+
+  it('uses the local month even when it differs from the UTC month', () => {
+    const now = new Date('2026-10-01T02:00:00Z')
+    const endTs = localMonthEndTs('America/New_York', now)
+
+    expect(endTs).toBe(Date.parse('2026-10-01T03:59:59.999Z'))
+    expect(
+      formatLocal(new Date(endTs).toISOString(), 'America/New_York', 'yyyy-MM-dd HH:mm:ss.SSS'),
+    ).toBe('2026-09-30 23:59:59.999')
   })
 })
 

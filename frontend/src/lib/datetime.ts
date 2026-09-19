@@ -1,5 +1,5 @@
 import { addDays, addMonths, endOfMonth, format, getDay, parse, startOfMonth } from 'date-fns'
-import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 const DATE_KEY_FORMAT = 'yyyy-MM-dd'
 
@@ -58,6 +58,10 @@ export function mondayOfDateKey(dateKey: string): string {
 
 export function localMidnightIso(dateKey: string, timezone: string): string {
   return fromZonedTime(`${dateKey}T00:00:00`, timezone).toISOString()
+}
+
+export function localMonthEndTs(timezone: string, now: Date = new Date()): number {
+  return fromZonedTime(endOfMonth(toZonedTime(now, timezone)), timezone).getTime()
 }
 
 export interface LocalWeekRange {

@@ -7,6 +7,10 @@ import {
 } from '../../lib/chartTheme'
 
 export interface LegendVisibility {
+  showWeight: boolean
+  showAverage: boolean
+  showTrend: boolean
+  showBmi: boolean
   showWeekly: boolean
   showMonthly: boolean
   showDated: boolean
@@ -16,7 +20,6 @@ export interface LegendVisibility {
   monthlyTargetKg: number | null
   weeklyRateKg: number | null
   monthlyRateKg: number | null
-  showBmi: boolean
 }
 
 export interface LegendItem {
@@ -33,27 +36,35 @@ export function buildLegendItems(visibility: LegendVisibility): LegendItem[] {
   const weight = seriesStyle(0)
   const bmi = seriesStyle(1, 1.5)
 
-  const items: LegendItem[] = [
-    {
+  const items: LegendItem[] = []
+
+  if (visibility.showWeight) {
+    items.push({
       key: 'weight',
       label: 'Weight',
       stroke: weight.stroke,
       strokeWidth: weight.strokeWidth,
       marker: seriesChannel(0).marker,
-    },
-    {
+    })
+  }
+
+  if (visibility.showAverage) {
+    items.push({
       key: 'average',
       label: '7-day avg',
       ...SEMANTIC_LINES.movingAverage,
       marker: null,
-    },
-    {
+    })
+  }
+
+  if (visibility.showTrend) {
+    items.push({
       key: 'trend',
       label: 'Trend',
       ...SEMANTIC_LINES.trend,
       marker: null,
-    },
-  ]
+    })
+  }
 
   if (visibility.showWeekly && visibility.weeklyRateKg !== null) {
     items.push({

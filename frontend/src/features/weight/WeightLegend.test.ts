@@ -3,6 +3,10 @@ import { SEMANTIC_LINES, seriesChannel, seriesStyle } from '../../lib/chartTheme
 import { buildLegendItems, type LegendItem, type LegendVisibility } from './WeightLegend'
 
 const BASE: LegendVisibility = {
+  showWeight: true,
+  showAverage: true,
+  showTrend: true,
+  showBmi: false,
   showWeekly: false,
   showMonthly: false,
   showDated: false,
@@ -12,7 +16,6 @@ const BASE: LegendVisibility = {
   monthlyTargetKg: null,
   weeklyRateKg: null,
   monthlyRateKg: null,
-  showBmi: false,
 }
 
 function build(overrides: Partial<LegendVisibility> = {}): LegendItem[] {
@@ -24,8 +27,26 @@ function labels(overrides: Partial<LegendVisibility> = {}): string[] {
 }
 
 describe('buildLegendItems visibility', () => {
-  it('always lists the three base series with their rendered names', () => {
+  it('lists the base series that are toggled on', () => {
     expect(labels()).toEqual(['Weight', '7-day avg', 'Trend'])
+  })
+
+  it('hides the weight series when its toggle is off', () => {
+    expect(labels({ showWeight: false })).toEqual(['7-day avg', 'Trend'])
+  })
+
+  it('hides the moving average when its toggle is off', () => {
+    expect(labels({ showAverage: false })).toEqual(['Weight', 'Trend'])
+  })
+
+  it('hides the trend when its toggle is off', () => {
+    expect(labels({ showTrend: false })).toEqual(['Weight', '7-day avg'])
+  })
+
+  it('returns nothing when every toggle is off', () => {
+    expect(
+      labels({ showWeight: false, showAverage: false, showTrend: false, showBmi: false }),
+    ).toEqual([])
   })
 
   it('lists the weekly projection only when shown and a weekly rate exists', () => {
@@ -74,7 +95,7 @@ describe('buildLegendItems visibility', () => {
         showFinal: true,
         hasDatedTarget: true,
         finalKg: 80,
-        monthlyTargetKg: 75,
+        monthlyTargetKg: null,
         weeklyRateKg: 0.5,
         monthlyRateKg: 0.5,
         showBmi: true,
@@ -87,9 +108,19 @@ describe('buildLegendItems visibility', () => {
       'Monthly projection',
       'Required rate',
       'Goal',
-      'Monthly target',
       'BMI (right axis)',
     ])
+  })
+
+  it('mirrors every rendered series in monthly target mode', () => {
+    expect(
+      labels({
+        showMonthly: true,
+        showFinal: true,
+        finalKg: 80,
+        monthlyTargetKg: 75,
+      }),
+    ).toEqual(['Weight', '7-day avg', 'Trend', 'Goal', 'Monthly target'])
   })
 })
 
