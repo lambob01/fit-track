@@ -10,10 +10,12 @@ from app.models import (
     CardioActivity,
     Exercise,
     SetEntry,
+    TemplateExercise,
     User,
     WeightEntry,
     Workout,
     WorkoutExercise,
+    WorkoutTemplate,
 )
 from app.seed.exercises import seed_exercises
 from app.seed.fake_data import seed_fake_data
@@ -97,6 +99,35 @@ def _workout_signature(db):
     ]
 
 
+def _template_signature(db):
+    templates = db.scalars(
+        select(WorkoutTemplate).order_by(WorkoutTemplate.name_lower)
+    ).all()
+    signature = []
+    for template in templates:
+        rows = db.execute(
+            select(TemplateExercise, Exercise)
+            .join(Exercise, Exercise.id == TemplateExercise.exercise_id)
+            .where(TemplateExercise.template_id == template.id)
+            .order_by(TemplateExercise.position)
+        ).all()
+        signature.append(
+            (
+                template.name,
+                [
+                    (
+                        exercise.name,
+                        row.target_sets,
+                        row.target_reps,
+                        row.target_weight_kg,
+                    )
+                    for row, exercise in rows
+                ],
+            )
+        )
+    return signature
+
+
 def _seed_and_snapshot(seed=42):
     db, engine = _fresh_session()
     _seed(db, seed)
@@ -107,8 +138,9 @@ def _seed_and_snapshot(seed=42):
     cardio = db.scalars(select(CardioActivity)).all()
     workouts = db.scalars(select(Workout)).all()
     signature = _workout_signature(db)
+    templates = _template_signature(db)
     engine.dispose()
-    return weights, len(cardio), len(workouts), signature
+    return weights, len(cardio), len(workouts), signature, templates
 
 
 def _expected_prefix(muscle_groups):
@@ -129,10 +161,82 @@ def test_fake_data_is_deterministic():
 
 
 def test_fake_data_volume_and_realism():
-    weights, cardio_count, workout_count, _ = _seed_and_snapshot()
+    weights, cardio_count, workout_count, _, _ = _seed_and_snapshot()
     assert 25 <= len(weights) <= 31, "roughly one weight entry per day"
     assert 6 <= cardio_count <= 16, "~3 runs/week over 30 days"
     assert 8 <= workout_count <= 18, "~3 workouts/week over 30 days"
+
+
+def test_fake_data_creates_workout_templates():
+    db, engine = _fresh_session()
+    _seed(db)
+    templates = db.scalars(select(WorkoutTemplate).order_by(WorkoutTemplate.name_lower)).all()
+    details = [
+        (
+            template,
+            db.scalars(
+                select(TemplateExercise)
+                .where(TemplateExercise.template_id == template.id)
+                .order_by(TemplateExercise.position)
+            ).all(),
+        )
+        for template in templates
+    ]
+    engine.dispose()
+
+    assert len(templates) >= 3, "demo data should create workout templates"
+    for template, rows in details:
+        assert 3 <= len(rows) <= 6, f"{template.name} has {len(rows)} template exercises"
+        assert [row.position for row in rows] == list(range(len(rows)))
+        for row in rows:
+            assert row.target_sets is not None and row.target_sets > 0, (
+                f"{template.name} has a non-positive target_sets"
+            )
+            assert row.target_reps is not None and row.target_reps > 0, (
+                f"{template.name} has a non-positive target_reps"
+            )
+
+
+def test_generated_workouts_reference_templates():
+    db, engine = _fresh_session()
+    _seed(db)
+    template_ids = set(db.scalars(select(WorkoutTemplate.id)).all())
+    workouts = db.scalars(select(Workout)).all()
+    engine.dispose()
+
+    assert len(template_ids) >= 3
+    referenced = [workout for workout in workouts if workout.template_id is not None]
+    assert referenced, "expected seeded workouts to reference workout templates"
+    for workout in referenced:
+        assert workout.template_id in template_ids
+
+
+def test_demo_seed_reuses_an_existing_template_name():
+    db, engine = _fresh_session()
+    user = User(id=uuid.uuid4(), username="u-existing-template", password_hash="x")
+    db.add(user)
+    db.commit()
+    seed_exercises(db, user.id)
+    existing = WorkoutTemplate(user_id=user.id, name="Push Day A", name_lower="push day a")
+    db.add(existing)
+    db.commit()
+    existing_id = existing.id
+
+    summary = seed_fake_data(db, user.id, days=30, seed=42)
+
+    same_name = db.scalars(
+        select(WorkoutTemplate).where(WorkoutTemplate.name_lower == "push day a")
+    ).all()
+    all_count = len(db.scalars(select(WorkoutTemplate.id)).all())
+    push_workouts = db.scalars(
+        select(Workout).where(Workout.template_id == existing_id)
+    ).all()
+    engine.dispose()
+
+    assert len(same_name) == 1, "pre-existing template should be reused, not duplicated"
+    assert summary["workout_templates"] == 3, "only the other three templates are created"
+    assert all_count == 4
+    assert push_workouts, "generated push workouts should reference the pre-existing template"
 
 
 def test_working_sets_follow_realistic_schemes():

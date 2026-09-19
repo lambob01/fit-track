@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError, plansApi } from '../../api/client'
 import type { Plan, Template } from '../../api/types'
 import { BottomSheet } from '../../components/BottomSheet'
@@ -57,6 +58,7 @@ export function PlanEditor({
   onClose,
 }: PlanEditorProps) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [name, setName] = useState(plan?.name ?? '')
   const [slotIds, setSlotIds] = useState<Record<number, string>>(() => initialSlotIds(plan))
   const [makeActive, setMakeActive] = useState(plan === null ? true : plan.is_active)
@@ -140,6 +142,25 @@ export function PlanEditor({
             detail={templatesDetail}
             onRetry={onRetryTemplates}
           />
+        )}
+
+        {!templatesError && templates.length === 0 && (
+          <div className="space-y-2 rounded-lg border border-line bg-surface p-3">
+            <p className="text-sm text-content-muted">
+              You have no workout templates yet. Create a template first, then come back to plan
+              your week.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                navigate('/lifting/templates')
+              }}
+              className="min-h-11 w-full rounded-lg border border-accent/50 px-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10"
+            >
+              Go to templates
+            </button>
+          </div>
         )}
 
         <fieldset className="space-y-2">

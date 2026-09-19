@@ -23,9 +23,11 @@ from app.models import (
     CardioActivity,
     Exercise,
     SetEntry,
+    TemplateExercise,
     WeightEntry,
     Workout,
     WorkoutExercise,
+    WorkoutTemplate,
 )
 
 START_WEIGHT_KG = 82.0
@@ -55,6 +57,14 @@ LEG_MUSCLE_GROUPS = frozenset({"quads", "hamstrings", "glutes", "calves"})
 
 # Cycle of workout kinds; repeated push/pull days get an A/B suffix.
 WORKOUT_ROTATION = ("push", "pull", "legs", "full")
+
+# Demo templates, keyed by workout kind so generated workouts can reference them.
+TEMPLATE_DEFINITIONS = (
+    ("Push Day A", "push"),
+    ("Pull Day A", "pull"),
+    ("Leg Day", "legs"),
+    ("Full Body", "full"),
+)
 
 
 def _round_half(value: float) -> float:
@@ -222,6 +232,57 @@ def _sample_exercises(
     return rng.sample(pool, min(rng.randint(4, 6), len(pool)))
 
 
+def _seed_templates(
+    db: Session, user_id: UUID, rng: random.Random, exercises: list[Exercise]
+) -> tuple[dict[str, UUID], int, int]:
+    """Create the demo workout templates and return kind -> id plus counts.
+
+    Each template reuses the workout sampling logic so its exercises match the
+    kind of session generated workouts represent. Templates are matched by
+    lowercased name: a pre-existing template is reused (its exercises are left
+    untouched) instead of inserting a duplicate that would violate the per-user
+    unique name constraint.
+    """
+    pools = _exercise_pools(exercises)
+    if not any(pools.values()):
+        return {}, 0, 0
+
+    template_ids: dict[str, UUID] = {}
+    created = 0
+    template_exercise_count = 0
+    for name, workout_type in TEMPLATE_DEFINITIONS:
+        existing = db.scalar(
+            select(WorkoutTemplate).where(
+                WorkoutTemplate.user_id == user_id,
+                WorkoutTemplate.name_lower == name.lower(),
+            )
+        )
+        if existing is not None:
+            template_ids[workout_type] = existing.id
+            continue
+        selected = _sample_exercises(rng, pools, workout_type)
+        if not selected:
+            continue
+        template = WorkoutTemplate(user_id=user_id, name=name, name_lower=name.lower())
+        db.add(template)
+        db.flush()
+        for position, exercise in enumerate(selected):
+            db.add(
+                TemplateExercise(
+                    template_id=template.id,
+                    exercise_id=exercise.id,
+                    position=position,
+                    target_sets=rng.randint(3, 4),
+                    target_reps=rng.randint(*_working_rep_range(exercise)),
+                )
+            )
+            template_exercise_count += 1
+        template_ids[workout_type] = template.id
+        created += 1
+
+    return template_ids, created, template_exercise_count
+
+
 def _seed_workouts(
     db: Session,
     user_id: UUID,
@@ -229,6 +290,7 @@ def _seed_workouts(
     days: int,
     rng: random.Random,
     exercises: list[Exercise],
+    template_ids: dict[str, UUID],
 ) -> tuple[int, int, int]:
     pools = _exercise_pools(exercises)
     if not any(pools.values()):
@@ -267,7 +329,12 @@ def _seed_workouts(
         performed_at = datetime.combine(day.date(), time(18, 0), tzinfo=UTC) + timedelta(
             minutes=rng.randint(0, 45)
         )
-        workout = Workout(user_id=user_id, performed_at=performed_at, name=name)
+        workout = Workout(
+            user_id=user_id,
+            performed_at=performed_at,
+            name=name,
+            template_id=template_ids.get(workout_type),
+        )
         db.add(workout)
         db.flush()
 
@@ -337,14 +404,19 @@ def seed_fake_data(db: Session, user_id: UUID, days: int = 30, seed: int = 42) -
 
     weight_count = _seed_weights(db, user_id, start, days, rng)
     exercises = _load_exercises(db, user_id)
+    template_ids, template_count, template_exercise_count = _seed_templates(
+        db, user_id, rng, exercises
+    )
     workout_count, workout_exercise_count, set_count = _seed_workouts(
-        db, user_id, start, days, rng, exercises
+        db, user_id, start, days, rng, exercises, template_ids
     )
     cardio_count = _seed_cardio(db, user_id, start, days, rng)
 
     db.commit()
     return {
         "weight_entries": weight_count,
+        "workout_templates": template_count,
+        "template_exercises": template_exercise_count,
         "workouts": workout_count,
         "workout_exercises": workout_exercise_count,
         "sets": set_count,

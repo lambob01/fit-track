@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { ApiError, plansApi } from '../../api/client'
 import type { CalendarDay, Plan, Template } from '../../api/types'
 import { BottomSheet } from '../../components/BottomSheet'
@@ -35,6 +36,7 @@ export function DaySheet({
   onCreatePlan,
 }: DaySheetProps) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const assignMutation = useMutation({
     mutationFn: (templateId: string | null) => {
@@ -141,9 +143,22 @@ export function DaySheet({
               })}
 
               {templates.length === 0 && !currentTemplateMissing && (
-                <p className="pt-1 text-sm text-content-muted">
-                  No templates yet. Create one from the Lifting tab to plan it here.
-                </p>
+                <div className="space-y-2 rounded-lg border border-line bg-surface p-3">
+                  <p className="text-sm text-content-muted">
+                    You have no workout templates yet. Create a template first, then come back to
+                    plan your week.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      navigate('/lifting/templates')
+                    }}
+                    className="min-h-11 w-full rounded-lg border border-accent/50 px-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10"
+                  >
+                    Go to templates
+                  </button>
+                </div>
               )}
             </>
           )}
