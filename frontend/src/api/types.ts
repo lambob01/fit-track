@@ -646,10 +646,18 @@ export interface CalendarPlanRef {
   name: string
 }
 
+export interface CalendarWeekSection {
+  week_start: string
+  week_end: string
+  planned_days: number
+  completed_days: number
+}
+
 export interface CalendarWeek {
   week_start: string
   week_end: string
   plan: CalendarPlanRef | null
   days: CalendarDay[]
   adherence: CalendarAdherence
+  weeks: CalendarWeekSection[] | null
 }

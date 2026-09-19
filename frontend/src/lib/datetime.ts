@@ -1,4 +1,4 @@
-import { addDays, format, getDay, parse } from 'date-fns'
+import { addDays, addMonths, endOfMonth, format, getDay, parse, startOfMonth } from 'date-fns'
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 
 const DATE_KEY_FORMAT = 'yyyy-MM-dd'
@@ -35,9 +35,29 @@ export function addDaysToDateKey(dateKey: string, days: number): string {
   return format(addDays(parseDateKey(dateKey), days), DATE_KEY_FORMAT)
 }
 
-export function mondayOfDateKey(dateKey: string): string {
+export function addMonthsToDateKey(dateKey: string, months: number): string {
+  return format(addMonths(parseDateKey(dateKey), months), DATE_KEY_FORMAT)
+}
+
+export function monthStartDateKey(dateKey: string): string {
+  return format(startOfMonth(parseDateKey(dateKey)), DATE_KEY_FORMAT)
+}
+
+export function monthEndDateKey(dateKey: string): string {
+  return format(endOfMonth(parseDateKey(dateKey)), DATE_KEY_FORMAT)
+}
+
+export function mondayIndex(dateKey: string): number {
   const weekday = getDay(parseDateKey(dateKey))
-  return addDaysToDateKey(dateKey, weekday === 0 ? -6 : 1 - weekday)
+  return weekday === 0 ? 6 : weekday - 1
+}
+
+export function mondayOfDateKey(dateKey: string): string {
+  return addDaysToDateKey(dateKey, -mondayIndex(dateKey))
+}
+
+export function localMidnightIso(dateKey: string, timezone: string): string {
+  return fromZonedTime(`${dateKey}T00:00:00`, timezone).toISOString()
 }
 
 export interface LocalWeekRange {
@@ -47,11 +67,10 @@ export interface LocalWeekRange {
 
 export function localWeekRange(dateKey: string, timezone: string): LocalWeekRange {
   const monday = mondayOfDateKey(dateKey)
-  const nextMonday = addDaysToDateKey(monday, 7)
 
   return {
-    from: fromZonedTime(`${monday}T00:00:00`, timezone).toISOString(),
-    to: fromZonedTime(`${nextMonday}T00:00:00`, timezone).toISOString(),
+    from: localMidnightIso(monday, timezone),
+    to: localMidnightIso(addDaysToDateKey(monday, 7), timezone),
   }
 }
 

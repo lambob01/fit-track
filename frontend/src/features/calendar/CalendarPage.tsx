@@ -4,10 +4,27 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError, calendarApi, plansApi, templatesApi, workoutsApi } from '../../api/client'
 import type { CalendarDay, Plan } from '../../api/types'
 import { useSettings } from '../../context/SettingsContext'
-import { addDaysToDateKey, formatDateKey, localDateKey, todayDateKey } from '../../lib/datetime'
+import {
+  buildListDays,
+  listWorkoutQuery,
+  periodRange,
+  shiftPeriod,
+  sumAdherence,
+  type CalendarMode,
+  type CalendarPeriod,
+} from '../../lib/calendarRange'
+import { formatDateKey, mondayOfDateKey, todayDateKey } from '../../lib/datetime'
 import { QueryErrorNotice } from '../lifting/QueryErrorNotice'
+import { CalendarList } from './CalendarList'
 import { DaySheet } from './DaySheet'
+import { MonthGrid } from './MonthGrid'
 import { PlanEditor } from './PlanEditor'
+
+const MODE_OPTIONS: { value: CalendarMode; label: string }[] = [
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'list', label: 'List' },
+]
 
 function errorDetail(error: unknown): string {
   if (error instanceof ApiError) {
@@ -20,10 +37,12 @@ function errorDetail(error: unknown): string {
 }
 
 export function CalendarPage() {
-  const { timezone } = useSettings()
+  const { timezone, unitSystem } = useSettings()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [weekStart, setWeekStart] = useState<string | null>(null)
+  const [mode, setMode] = useState<CalendarMode>('week')
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const [listPeriod, setListPeriod] = useState<CalendarPeriod>('week')
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null)
   const [selectedPlanId, setSelectedPlanId] = useState('')
   const [editor, setEditor] = useState<{ open: boolean; plan: Plan | null }>({
@@ -31,9 +50,29 @@ export function CalendarPage() {
     plan: null,
   })
 
-  const calendarQuery = useQuery({
-    queryKey: ['calendar', weekStart, timezone],
-    queryFn: () => calendarApi.week(weekStart ?? undefined),
+  const today = todayDateKey(timezone)
+  const anchorKey = anchor ?? today
+  const activePeriod: CalendarPeriod =
+    mode === 'month' ? 'month' : mode === 'week' ? 'week' : listPeriod
+  const range = periodRange(activePeriod, anchorKey)
+
+  const weekQuery = useQuery({
+    queryKey: ['calendar', 'week', anchor, timezone],
+    queryFn: () => calendarApi.week(anchor === null ? undefined : mondayOfDateKey(anchor)),
+    enabled: mode === 'week',
+  })
+
+  const rangeQuery = useQuery({
+    queryKey: ['calendar', 'range', range.from, range.to, timezone],
+    queryFn: () => calendarApi.range(range.from, range.to),
+    enabled: mode !== 'week',
+  })
+
+  const workoutQuery = listWorkoutQuery(activePeriod, anchorKey, timezone)
+  const listQuery = useQuery({
+    queryKey: ['workouts', 'calendar-list', workoutQuery.from, workoutQuery.to],
+    queryFn: () => workoutsApi.listRange(workoutQuery),
+    enabled: mode === 'list',
   })
 
   const plansQuery = useQuery({
@@ -47,6 +86,9 @@ export function CalendarPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const calendarQuery = mode === 'week' ? weekQuery : rangeQuery
+  const calendar = calendarQuery.data
+
   const plans = useMemo(() => plansQuery.data ?? [], [plansQuery.data])
   const activePlan = useMemo(() => plans.find((plan) => plan.is_active) ?? null, [plans])
   const effectivePlanId = useMemo(() => {
@@ -56,6 +98,27 @@ export function CalendarPage() {
     return activePlan?.id ?? plans[0]?.id ?? ''
   }, [selectedPlanId, plans, activePlan])
   const effectivePlan = plans.find((plan) => plan.id === effectivePlanId) ?? null
+
+  const daysByDate = useMemo(() => {
+    const map = new Map<string, CalendarDay>()
+    for (const day of calendar?.days ?? []) {
+      map.set(day.date, day)
+    }
+    return map
+  }, [calendar])
+
+  const listRows = useMemo(() => {
+    if (mode !== 'list' || calendar === undefined || listQuery.data === undefined) {
+      return []
+    }
+    return buildListDays(
+      calendar.days,
+      listQuery.data,
+      { from: workoutQuery.from, to: workoutQuery.to },
+      timezone,
+      today,
+    )
+  }, [mode, calendar, listQuery.data, workoutQuery.from, workoutQuery.to, timezone, today])
 
   const activateMutation = useMutation({
     mutationFn: plansApi.activate,
@@ -74,63 +137,87 @@ export function CalendarPage() {
     },
   })
 
-  const calendar = calendarQuery.data
-  const startKey = calendar === undefined ? null : localDateKey(calendar.week_start, timezone)
-  const endKey = startKey === null ? null : addDaysToDateKey(startKey, 6)
-  const today = todayDateKey(timezone)
+  function selectMode(next: CalendarMode) {
+    if (next === 'list' && mode !== 'list') {
+      setListPeriod(mode)
+    }
+    setMode(next)
+  }
+
+  function stepPeriod(delta: number) {
+    const period: CalendarPeriod = mode === 'list' ? listPeriod : mode
+    setAnchor(shiftPeriod(period, anchorKey, delta))
+  }
+
+  const periodLabel =
+    activePeriod === 'month'
+      ? formatDateKey(range.from, 'MMMM yyyy')
+      : `${formatDateKey(range.from, 'MMM d')} – ${formatDateKey(range.to, 'MMM d, yyyy')}`
+  const adherence =
+    calendar === undefined
+      ? null
+      : mode === 'week'
+        ? calendar.adherence
+        : sumAdherence(calendar.weeks)
 
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold tracking-tight">Calendar</h1>
 
+      <section className="rounded-xl border border-line bg-surface-raised p-2">
+        <div role="group" aria-label="Calendar view" className="grid grid-cols-3 gap-1">
+          {MODE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={mode === option.value}
+              onClick={() => selectMode(option.value)}
+              className={[
+                'min-h-11 rounded-lg border text-sm font-medium transition-colors',
+                mode === option.value
+                  ? 'border-accent bg-accent text-surface'
+                  : 'border-line bg-surface text-content-muted hover:border-content-muted hover:text-content',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="rounded-xl border border-line bg-surface-raised p-4">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            aria-label="Previous week"
-            disabled={startKey === null}
-            onClick={() => {
-              if (startKey !== null) {
-                setWeekStart(addDaysToDateKey(startKey, -7))
-              }
-            }}
-            className="min-h-11 min-w-11 rounded-lg border border-line text-lg transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            aria-label="Previous period"
+            onClick={() => stepPeriod(-1)}
+            className="min-h-11 min-w-11 rounded-lg border border-line text-lg transition-colors hover:border-accent hover:text-accent"
           >
             ←
           </button>
           <div className="min-w-0 text-center">
-            <p className="truncate text-sm font-medium">
-              {startKey === null || endKey === null
-                ? 'Loading week…'
-                : `${formatDateKey(startKey, 'MMM d')} – ${formatDateKey(endKey, 'MMM d, yyyy')}`}
-            </p>
-            {calendar !== undefined &&
-              (calendar.plan === null ? (
+            <p className="truncate text-sm font-medium">{periodLabel}</p>
+            {adherence !== null &&
+              (calendar?.plan === null ? (
                 <p className="text-xs text-content-muted">No active plan</p>
               ) : (
                 <p className="text-xs text-content-muted">
-                  {calendar.adherence.completed_days}/{calendar.adherence.planned_days} planned
-                  workouts completed
+                  {adherence.completed_days}/{adherence.planned_days} planned workouts completed
                 </p>
               ))}
           </div>
           <button
             type="button"
-            aria-label="Next week"
-            disabled={startKey === null}
-            onClick={() => {
-              if (startKey !== null) {
-                setWeekStart(addDaysToDateKey(startKey, 7))
-              }
-            }}
-            className="min-h-11 min-w-11 rounded-lg border border-line text-lg transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            aria-label="Next period"
+            onClick={() => stepPeriod(1)}
+            className="min-h-11 min-w-11 rounded-lg border border-line text-lg transition-colors hover:border-accent hover:text-accent"
           >
             →
           </button>
         </div>
         <button
           type="button"
-          onClick={() => setWeekStart(null)}
+          onClick={() => setAnchor(null)}
           className="mt-2 min-h-11 w-full rounded-lg border border-line text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Today
@@ -228,76 +315,119 @@ export function CalendarPage() {
         />
       )}
 
-      {calendarQuery.isPending ? (
-        <p className="text-sm text-content-muted">Loading calendar…</p>
-      ) : calendarQuery.isError ? (
-        <QueryErrorNotice
-          message="Could not load the calendar."
-          detail={errorDetail(calendarQuery.error)}
-          onRetry={() => void calendarQuery.refetch()}
-        />
-      ) : (
-        <ul className="space-y-2">
-          {calendarQuery.data.days.map((day) => {
-            const isToday = day.date === today
-            const templateId = day.template_id
-            return (
-              <li
-                key={day.date}
-                className={[
-                  'flex items-stretch overflow-hidden rounded-xl border bg-surface-raised',
-                  isToday ? 'border-accent' : 'border-line',
-                ].join(' ')}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedDay(day)}
-                  className="flex min-h-14 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface"
+      {mode === 'week' &&
+        (weekQuery.isPending ? (
+          <p className="text-sm text-content-muted">Loading calendar…</p>
+        ) : weekQuery.isError ? (
+          <QueryErrorNotice
+            message="Could not load the calendar."
+            detail={errorDetail(weekQuery.error)}
+            onRetry={() => void weekQuery.refetch()}
+          />
+        ) : (
+          <ul className="space-y-2">
+            {weekQuery.data.days.map((day) => {
+              const isToday = day.date === today
+              const templateId = day.template_id
+              return (
+                <li
+                  key={day.date}
+                  className={[
+                    'flex items-stretch overflow-hidden rounded-xl border bg-surface-raised',
+                    isToday ? 'border-accent' : 'border-line',
+                  ].join(' ')}
                 >
-                  <span className="w-12 shrink-0">
-                    <span
-                      className={[
-                        'block text-xs',
-                        isToday ? 'font-semibold text-accent' : 'text-content-muted',
-                      ].join(' ')}
-                    >
-                      {isToday ? 'Today' : formatDateKey(day.date, 'EEE')}
-                    </span>
-                    <span className="block text-lg font-semibold tabular-nums">
-                      {formatDateKey(day.date, 'd')}
-                    </span>
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {day.template_name ?? 'Rest'}
-                    </span>
-                    {day.completed && (
-                      <span className="block text-xs text-content-muted">
-                        ✓ Done
-                        {day.workout_ids.length > 1 ? ` (${day.workout_ids.length})` : ''}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    className="flex min-h-14 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface"
+                  >
+                    <span className="w-12 shrink-0">
+                      <span
+                        className={[
+                          'block text-xs',
+                          isToday ? 'font-semibold text-accent' : 'text-content-muted',
+                        ].join(' ')}
+                      >
+                        {isToday ? 'Today' : formatDateKey(day.date, 'EEE')}
                       </span>
-                    )}
-                  </span>
-                </button>
-                {templateId !== null && (
-                  <div className="flex shrink-0 items-center border-l border-line px-2">
-                    <button
-                      type="button"
-                      disabled={startMutation.isPending && startMutation.variables === templateId}
-                      onClick={() => startMutation.mutate(templateId)}
-                      className="min-h-11 rounded-lg border border-accent/50 px-3 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
-                    >
-                      {startMutation.isPending && startMutation.variables === templateId
-                        ? 'Starting…'
-                        : 'Start'}
-                    </button>
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                      <span className="block text-lg font-semibold tabular-nums">
+                        {formatDateKey(day.date, 'd')}
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {day.template_name ?? 'Rest'}
+                      </span>
+                      {day.completed && (
+                        <span className="block text-xs text-content-muted">
+                          ✓ Done
+                          {day.workout_ids.length > 1 ? ` (${day.workout_ids.length})` : ''}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  {templateId !== null && (
+                    <div className="flex shrink-0 items-center border-l border-line px-2">
+                      <button
+                        type="button"
+                        disabled={startMutation.isPending && startMutation.variables === templateId}
+                        onClick={() => startMutation.mutate(templateId)}
+                        className="min-h-11 rounded-lg border border-accent/50 px-3 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+                      >
+                        {startMutation.isPending && startMutation.variables === templateId
+                          ? 'Starting…'
+                          : 'Start'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        ))}
+
+      {mode === 'month' &&
+        (rangeQuery.isPending ? (
+          <p className="text-sm text-content-muted">Loading month…</p>
+        ) : rangeQuery.isError ? (
+          <QueryErrorNotice
+            message="Could not load the calendar."
+            detail={errorDetail(rangeQuery.error)}
+            onRetry={() => void rangeQuery.refetch()}
+          />
+        ) : (
+          <MonthGrid
+            monthDateKey={range.from}
+            days={rangeQuery.data.days}
+            today={today}
+            onSelectDay={setSelectedDay}
+          />
+        ))}
+
+      {mode === 'list' &&
+        (rangeQuery.isPending || listQuery.isPending ? (
+          <p className="text-sm text-content-muted">Loading list…</p>
+        ) : rangeQuery.isError ? (
+          <QueryErrorNotice
+            message="Could not load the calendar."
+            detail={errorDetail(rangeQuery.error)}
+            onRetry={() => void rangeQuery.refetch()}
+          />
+        ) : listQuery.isError ? (
+          <QueryErrorNotice
+            message="Could not load the workouts."
+            detail={errorDetail(listQuery.error)}
+            onRetry={() => void listQuery.refetch()}
+          />
+        ) : (
+          <CalendarList
+            rows={listRows}
+            unitSystem={unitSystem}
+            today={today}
+            onSelectDay={(date) => setSelectedDay(daysByDate.get(date) ?? null)}
+          />
+        ))}
 
       <DaySheet
         open={selectedDay !== null}

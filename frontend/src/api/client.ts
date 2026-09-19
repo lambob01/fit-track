@@ -238,8 +238,19 @@ export const exercisesApi = {
     api<LastPerformance | null>(`/api/exercises/${id}/last-performance`),
 }
 
+export interface WorkoutListParams {
+  from: string
+  to: string
+  limit?: number
+}
+
 export const workoutsApi = {
   list: (limit = 50) => api<WorkoutSummary[]>(`/api/workouts?limit=${limit}`),
+  listRange: (params: WorkoutListParams) => {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    return api<WorkoutSummary[]>(`/api/workouts?${query.toString()}`)
+  },
   get: (id: string) => api<Workout>(`/api/workouts/${id}`),
   save: (input: WorkoutInput) => api<Workout>('/api/workouts', jsonRequest('POST', input)),
   patch: (id: string, patch: WorkoutPatch) =>
@@ -292,6 +303,10 @@ export const calendarApi = {
     const suffix = weekStart === undefined ? '' : `?week_start=${weekStart}`
     return api<CalendarWeek>(`/api/calendar${suffix}`)
   },
+  range: (from: string, to: string) =>
+    api<CalendarWeek>(
+      `/api/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    ),
 }
 
 export interface WeightSeriesParams {
