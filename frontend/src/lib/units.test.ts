@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   cmToIn,
+  distanceForDisplay,
+  distanceToMeters,
   formatWeightRate,
   ftToM,
   inToCm,
@@ -44,6 +46,26 @@ describe('formatWeightRate', () => {
 
   it('formats zero without a sign', () => {
     expect(formatWeightRate(0, 'metric')).toBe('0 kg/week')
+  })
+})
+
+describe('distance display helpers', () => {
+  it('formats meters into metric and imperial display values', () => {
+    expect(distanceForDisplay(5000, 'metric')).toBe(5)
+    expect(distanceForDisplay(5000, 'imperial')).toBe(3.11)
+  })
+
+  it('converts display values back to meters', () => {
+    expect(distanceToMeters(5, 'metric')).toBe(5000)
+    expect(distanceToMeters(3.11, 'imperial')).toBeCloseTo(5005.06, 2)
+  })
+
+  it('round-trips common distances', () => {
+    expect(distanceToMeters(distanceForDisplay(10000, 'metric'), 'metric')).toBe(10000)
+    expect(distanceToMeters(distanceForDisplay(1609.344, 'imperial'), 'imperial')).toBeCloseTo(
+      1609.344,
+      2,
+    )
   })
 })
 

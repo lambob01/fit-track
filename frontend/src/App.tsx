@@ -13,6 +13,7 @@ import { TemplateEditorPage } from './features/lifting/TemplateEditorPage'
 import { TemplateListPage } from './features/lifting/TemplateListPage'
 import { WorkoutLoggerPage } from './features/lifting/WorkoutLoggerPage'
 import { FirstRunSheet } from './features/profiles/FirstRunSheet'
+import { RunDetailPage } from './features/running/RunDetailPage'
 import { RunningPage } from './features/running/RunningPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { WeightPage } from './features/weight/WeightPage'
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="/lifting/templates" element={<TemplateListPage />} />
                 <Route path="/lifting/templates/:id" element={<TemplateEditorPage />} />
                 <Route path="/running" element={<RunningPage />} />
+                <Route path="/running/:id" element={<RunDetailPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

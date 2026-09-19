@@ -2,9 +2,14 @@ import type {
   CalendarWeek,
   CardioActivity,
   CardioActivityInput,
+  CardioComparison,
+  CardioPrs,
+  CardioSplits,
+  CardioStreaks,
   CardioSummary,
   CardioType,
   CardioWeek,
+  CardioZones,
   Dashboard,
   DemoSeedCounts,
   Exercise,
@@ -26,6 +31,9 @@ import type {
   SetPatch,
   Settings,
   SettingsPatch,
+  Shoe,
+  ShoeInput,
+  ShoePatch,
   StartFromTemplateResult,
   Template,
   TemplateInput,
@@ -306,11 +314,26 @@ export const cardioApi = {
     const suffix = weekStart === undefined ? '' : `?week_start=${weekStart}`
     return api<CardioWeek>(`/api/cardio/week${suffix}`)
   },
+  get: (id: string) => api<CardioActivity>(`/api/cardio/${id}`),
   create: (input: CardioActivityInput) =>
     api<CardioActivity>('/api/cardio', jsonRequest('POST', input)),
   update: (id: string, patch: CardioActivityInput) =>
     api<CardioActivity>(`/api/cardio/${id}`, jsonRequest('PATCH', patch)),
   remove: (id: string) => api<void>(`/api/cardio/${id}`, { method: 'DELETE' }),
+  splits: (id: string) => api<CardioSplits>(`/api/cardio/splits/${id}`),
+  prs: () => api<CardioPrs>('/api/cardio/prs'),
+  streaks: () => api<CardioStreaks>('/api/cardio/streaks'),
+  comparison: (type: CardioType = 'run') =>
+    api<CardioComparison>(`/api/cardio/comparison?type=${type}`),
+  zones: (id: string) => api<CardioZones | null>(`/api/cardio/${id}/zones`),
+}
+
+export const shoesApi = {
+  list: () => api<Shoe[]>('/api/shoes'),
+  create: (input: ShoeInput) => api<Shoe>('/api/shoes', jsonRequest('POST', input)),
+  update: (id: string, patch: ShoePatch) =>
+    api<Shoe>(`/api/shoes/${id}`, jsonRequest('PATCH', patch)),
+  remove: (id: string) => api<void>(`/api/shoes/${id}`, { method: 'DELETE' }),
 }
 
 export const weightApi = {

@@ -83,6 +83,15 @@ export function formatDistance(m: number, system: UnitSystem): string {
   return `${trimTrailingZeros((m / 1000).toFixed(2))} km`
 }
 
+export function distanceForDisplay(meters: number, system: UnitSystem): number {
+  const value = system === 'imperial' ? mToMi(meters) : meters / 1000
+  return Number(value.toFixed(2))
+}
+
+export function distanceToMeters(value: number, system: UnitSystem): number {
+  return system === 'imperial' ? miToM(value) : value * 1000
+}
+
 export function formatPace(sPerKm: number, system: UnitSystem): string {
   const seconds = system === 'imperial' ? sPerKm * (M_PER_MI / 1000) : sPerKm
   const rounded = Math.round(seconds)

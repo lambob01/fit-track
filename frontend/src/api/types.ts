@@ -110,8 +110,27 @@ export interface CardioActivity {
   avg_hr: number | null
   route_name: string | null
   notes: string | null
+  shoe_id: string | null
   source: string
   pace_s_per_km: number | null
+}
+
+export interface CardioSplit {
+  split_number: number
+  distance_m: number
+  duration_s: number
+}
+
+export interface CardioSplitInput {
+  distance_m: number
+  duration_s: number
+}
+
+export type SplitSource = 'stored' | 'derived'
+
+export interface CardioSplits {
+  source: SplitSource
+  splits: CardioSplit[]
 }
 
 export interface CardioActivityInput {
@@ -121,6 +140,86 @@ export interface CardioActivityInput {
   duration_s: number
   avg_hr?: number | null
   route_name?: string | null
+  notes?: string | null
+  shoe_id?: string | null
+  splits?: CardioSplitInput[] | null
+}
+
+export interface CardioPrValue {
+  cardio_activity_id: string
+  performed_at: string
+  value: number
+}
+
+export interface CardioPrs {
+  fastest_1k: CardioPrValue | null
+  fastest_5k: CardioPrValue | null
+  fastest_10k: CardioPrValue | null
+  longest_distance: CardioPrValue | null
+  longest_duration: CardioPrValue | null
+}
+
+export interface CardioZone {
+  zone: string
+  label: string
+  seconds: number
+}
+
+export interface CardioZones {
+  max_hr: number
+  zones: CardioZone[]
+}
+
+export interface CardioWeeklyCount {
+  week_start: string
+  count: number
+  distance_m: number
+}
+
+export interface CardioStreaks {
+  current_weeks: number
+  longest_weeks: number
+  weekly_counts: CardioWeeklyCount[]
+}
+
+export interface CardioComparisonTotals {
+  total_distance_m: number
+  total_duration_s: number
+  activity_count: number
+  avg_pace_s_per_km: number | null
+}
+
+export interface CardioComparison {
+  this_week: CardioComparisonTotals
+  last_week: CardioComparisonTotals
+  four_week_average: CardioComparisonTotals
+}
+
+export interface Shoe {
+  id: string
+  name: string
+  purchased_at: string | null
+  initial_distance_m: number
+  retired_at: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  mileage_m: number
+}
+
+export interface ShoeInput {
+  name: string
+  purchased_at?: string | null
+  initial_distance_m?: number
+  retired_at?: string | null
+  notes?: string | null
+}
+
+export interface ShoePatch {
+  name?: string
+  purchased_at?: string | null
+  initial_distance_m?: number
+  retired_at?: string | null
   notes?: string | null
 }
 
