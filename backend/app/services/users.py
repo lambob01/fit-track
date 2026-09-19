@@ -8,6 +8,21 @@ from app.models import User
 
 logger = logging.getLogger(__name__)
 
+UNUSABLE_PASSWORD_HASH = "!"
+
+
+def create_profile(db: Session, name: str) -> User:
+    profile = User(
+        username=name,
+        password_hash=UNUSABLE_PASSWORD_HASH,
+        unit_system="metric",
+        timezone="UTC",
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
 
 def ensure_default_user(db: Session) -> User | None:
     if db.scalar(select(User).limit(1)) is not None:
