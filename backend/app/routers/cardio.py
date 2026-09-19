@@ -1,6 +1,5 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import delete, func, select
@@ -14,14 +13,23 @@ from app.schemas.cardio import (
     CardioActivityCreate,
     CardioActivityOut,
     CardioActivityPatch,
+    CardioComparisonOut,
+    CardioComparisonTotalsOut,
+    CardioPrsOut,
+    CardioPrValue,
     CardioSplitIn,
     CardioSplitOut,
     CardioSplitsOut,
+    CardioStreaksOut,
     CardioSummaryOut,
     CardioType,
+    CardioWeeklyCountOut,
     CardioWeekOut,
+    CardioZoneOut,
+    CardioZonesOut,
 )
-from app.services.analytics import bucket_start, pace_s_per_km
+from app.services import running
+from app.services.analytics import pace_s_per_km
 
 router = APIRouter(
     prefix="/api/cardio",
@@ -128,14 +136,9 @@ def _week_window(user: User, week_start: date | None) -> tuple[datetime, datetim
     weeks stay 7 local calendar days (167/169 wall-clock hours) and an explicit
     non-Monday `week_start` still spans the documented 7 days.
     """
-    tzinfo = ZoneInfo(user.timezone)
     if week_start is None:
-        local_start = bucket_start(datetime.now(UTC), user.timezone, "week").astimezone(tzinfo)
-    else:
-        local_start = datetime.combine(week_start, time.min, tzinfo=tzinfo)
-    start = local_start.astimezone(UTC)
-    end = (local_start + timedelta(days=7)).astimezone(UTC)
-    return start, end
+        week_start = running.local_week_start(datetime.now(UTC), user.timezone)
+    return running.week_bounds_utc(user.timezone, week_start)
 
 
 def week_totals(
@@ -225,6 +228,72 @@ def cardio_week(
     return week_totals(db, user, week_start)
 
 
+def _pr_out(result: running.PrResult | None) -> CardioPrValue | None:
+    if result is None:
+        return None
+    return CardioPrValue(
+        cardio_activity_id=result.cardio_activity_id,
+        performed_at=result.performed_at,
+        value=result.value,
+    )
+
+
+def _totals_out(totals: running.WeekTotals) -> CardioComparisonTotalsOut:
+    return CardioComparisonTotalsOut(
+        total_distance_m=totals.total_distance_m,
+        total_duration_s=totals.total_duration_s,
+        activity_count=totals.activity_count,
+        avg_pace_s_per_km=totals.avg_pace_s_per_km,
+    )
+
+
+@router.get("/prs", response_model=CardioPrsOut)
+def cardio_prs(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CardioPrsOut:
+    records = running.personal_records(db, user)
+    return CardioPrsOut(
+        fastest_1k=_pr_out(records["fastest_1k"]),
+        fastest_5k=_pr_out(records["fastest_5k"]),
+        fastest_10k=_pr_out(records["fastest_10k"]),
+        longest_distance=_pr_out(records["longest_distance"]),
+        longest_duration=_pr_out(records["longest_duration"]),
+    )
+
+
+@router.get("/streaks", response_model=CardioStreaksOut)
+def cardio_streaks(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CardioStreaksOut:
+    stats = running.streak_stats(db, user)
+    return CardioStreaksOut(
+        current_weeks=stats.current_weeks,
+        longest_weeks=stats.longest_weeks,
+        weekly_counts=[
+            CardioWeeklyCountOut(
+                week_start=item.week_start, count=item.count, distance_m=item.distance_m
+            )
+            for item in stats.weekly_counts
+        ],
+    )
+
+
+@router.get("/comparison", response_model=CardioComparisonOut)
+def cardio_comparison(
+    type: CardioType = "run",
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CardioComparisonOut:
+    result = running.comparison(db, user, type)
+    return CardioComparisonOut(
+        this_week=_totals_out(result.this_week),
+        last_week=_totals_out(result.last_week),
+        four_week_average=_totals_out(result.four_week_average),
+    )
+
+
 @router.get("/splits/{activity_id}", response_model=CardioSplitsOut)
 def get_activity_splits(
     activity_id: UUID,
@@ -247,6 +316,25 @@ def get_activity_splits(
     return CardioSplitsOut(
         source="derived",
         splits=_derived_splits(activity.distance_m, activity.duration_s),
+    )
+
+
+@router.get("/{activity_id}/zones", response_model=CardioZonesOut | None)
+def get_activity_zones(
+    activity_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CardioZonesOut | None:
+    activity = _get_owned(db, user, activity_id)
+    zones = running.hr_zones(user, activity)
+    if zones is None:
+        return None
+    return CardioZonesOut(
+        max_hr=zones.max_hr,
+        zones=[
+            CardioZoneOut(zone=band.zone, label=band.label, seconds=band.seconds)
+            for band in zones.zones
+        ],
     )
 
 

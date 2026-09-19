@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -153,3 +153,74 @@ class CardioWeekOut(CardioSummaryOut):
     @classmethod
     def utc_timestamps(cls, value: datetime) -> datetime:
         return stored_utc(value)
+
+
+class CardioPrValue(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    cardio_activity_id: UUID
+    performed_at: datetime
+    value: float
+
+    @field_validator("performed_at")
+    @classmethod
+    def utc_performed_at(cls, value: datetime) -> datetime:
+        return stored_utc(value)
+
+
+class CardioPrsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    fastest_1k: CardioPrValue | None
+    fastest_5k: CardioPrValue | None
+    fastest_10k: CardioPrValue | None
+    longest_distance: CardioPrValue | None
+    longest_duration: CardioPrValue | None
+
+
+class CardioZoneOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    zone: str
+    label: str
+    seconds: int
+
+
+class CardioZonesOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    max_hr: int
+    zones: list[CardioZoneOut]
+
+
+class CardioWeeklyCountOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    week_start: date
+    count: int
+    distance_m: float
+
+
+class CardioStreaksOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    current_weeks: int
+    longest_weeks: int
+    weekly_counts: list[CardioWeeklyCountOut]
+
+
+class CardioComparisonTotalsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    total_distance_m: float
+    total_duration_s: float
+    activity_count: float
+    avg_pace_s_per_km: float | None
+
+
+class CardioComparisonOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    this_week: CardioComparisonTotalsOut
+    last_week: CardioComparisonTotalsOut
+    four_week_average: CardioComparisonTotalsOut
