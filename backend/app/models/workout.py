@@ -136,3 +136,48 @@ class SetEntry(UUIDMixin, TimestampMixin, Base):
         CheckConstraint("reps >= 1", name="ck_sets_reps"),
         CheckConstraint("rpe IS NULL OR (rpe >= 0 AND rpe <= 10)", name="ck_sets_rpe"),
     )
+
+
+class WeeklyPlan(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "weekly_plans"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_lower: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("0"), default=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "name_lower", name="uq_weekly_plans_user_id_name_lower"
+        ),
+        Index(
+            "uq_weekly_plans_active_per_user",
+            "user_id",
+            unique=True,
+            sqlite_where=text("is_active = 1"),
+        ),
+    )
+
+
+class WeeklyPlanSlot(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "weekly_plan_slots"
+
+    plan_id: Mapped[UUID] = mapped_column(
+        ForeignKey("weekly_plans.id", ondelete="CASCADE"), nullable=False
+    )
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)
+    template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workout_templates.id", ondelete="SET NULL"), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("plan_id", "day_of_week", name="uq_weekly_plan_slots_plan_day"),
+        CheckConstraint(
+            "day_of_week >= 0 AND day_of_week <= 6",
+            name="ck_weekly_plan_slots_day_of_week",
+        ),
+    )

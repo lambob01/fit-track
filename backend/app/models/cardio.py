@@ -2,7 +2,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -50,4 +59,24 @@ class CardioActivity(UUIDMixin, TimestampMixin, Base):
             name="ck_cardio_activities_avg_hr",
         ),
         Index("ix_cardio_activities_user_id_performed_at", "user_id", "performed_at"),
+    )
+
+
+class CardioSplit(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "cardio_splits"
+
+    cardio_activity_id: Mapped[UUID] = mapped_column(
+        ForeignKey("cardio_activities.id", ondelete="CASCADE"), nullable=False
+    )
+    split_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    distance_m: Mapped[float] = mapped_column(Float, nullable=False)
+    duration_s: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "cardio_activity_id", "split_number", name="uq_cardio_splits_activity_number"
+        ),
+        CheckConstraint("split_number >= 1", name="ck_cardio_splits_split_number"),
+        CheckConstraint("distance_m > 0", name="ck_cardio_splits_distance_m"),
+        CheckConstraint("duration_s > 0", name="ck_cardio_splits_duration_s"),
     )

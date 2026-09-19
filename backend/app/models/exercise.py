@@ -1,10 +1,14 @@
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
+    Float,
     ForeignKey,
     Index,
+    Integer,
     Text,
     UniqueConstraint,
     text,
@@ -37,6 +41,30 @@ class Exercise(UUIDMixin, TimestampMixin, Base):
     )
     is_archived: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("0"), default=False
+    )
+    goal_weight_kg: Mapped[float | None] = mapped_column(
+        Float,
+        CheckConstraint(
+            "goal_weight_kg IS NULL OR goal_weight_kg > 0",
+            name="ck_exercises_goal_weight_kg",
+        ),
+        nullable=True,
+    )
+    goal_reps: Mapped[int | None] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "goal_reps IS NULL OR goal_reps > 0", name="ck_exercises_goal_reps"
+        ),
+        nullable=True,
+    )
+    goal_target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    goal_reps_bodyweight: Mapped[int | None] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "goal_reps_bodyweight IS NULL OR goal_reps_bodyweight > 0",
+            name="ck_exercises_goal_reps_bodyweight",
+        ),
+        nullable=True,
     )
 
     __table_args__ = (

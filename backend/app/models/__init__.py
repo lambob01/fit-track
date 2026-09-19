@@ -1,5 +1,5 @@
 from app.database import Base
-from app.models.cardio import CardioActivity
+from app.models.cardio import CardioActivity, CardioSplit
 from app.models.exercise import Exercise
 from app.models.phase2 import (
     BodyMeasurement,
@@ -14,6 +14,8 @@ from app.models.weight import WeightEntry
 from app.models.workout import (
     SetEntry,
     TemplateExercise,
+    WeeklyPlan,
+    WeeklyPlanSlot,
     Workout,
     WorkoutExercise,
     WorkoutTemplate,
@@ -23,6 +25,7 @@ __all__ = [
     "Base",
     "BodyMeasurement",
     "CardioActivity",
+    "CardioSplit",
     "Exercise",
     "ProgressPhoto",
     "SetEntry",
@@ -30,6 +33,8 @@ __all__ = [
     "Tag",
     "TemplateExercise",
     "User",
+    "WeeklyPlan",
+    "WeeklyPlanSlot",
     "WeightEntry",
     "Workout",
     "WorkoutExercise",

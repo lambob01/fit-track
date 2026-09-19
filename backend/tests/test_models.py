@@ -6,6 +6,7 @@ EXPECTED_TABLES = {
     "users", "weight_entries", "exercises", "workout_templates", "template_exercises",
     "workouts", "workout_exercises", "sets", "cardio_activities",
     "body_measurements", "progress_photos", "tags", "workout_tags", "shoes",
+    "weekly_plans", "weekly_plan_slots", "cardio_splits",
 }
 
 
