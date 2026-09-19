@@ -2,7 +2,14 @@ import type { ComponentType, SVGProps } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { InstallPrompt } from './InstallPrompt'
 import { ThemeToggle } from './ThemeToggle'
-import { DumbbellIcon, HomeIcon, RunIcon, ScaleIcon, SettingsIcon } from './icons'
+import {
+  CalendarIcon,
+  DumbbellIcon,
+  HomeIcon,
+  RunIcon,
+  ScaleIcon,
+  SettingsIcon,
+} from './icons'
 
 interface NavItem {
   to: string
@@ -13,6 +20,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: HomeIcon, end: true },
+  { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { to: '/weight', label: 'Weight', icon: ScaleIcon },
   { to: '/lifting', label: 'Lifting', icon: DumbbellIcon },
   { to: '/running', label: 'Running', icon: RunIcon },

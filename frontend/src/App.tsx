@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
 import { AuthProvider } from './context/AuthContext'
 import { SettingsProvider } from './context/SettingsContext'
+import { CalendarPage } from './features/calendar/CalendarPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { ExerciseLibraryPage } from './features/lifting/ExerciseLibraryPage'
 import { ExerciseProgressPage } from './features/lifting/ExerciseProgressPage'
@@ -41,6 +42,7 @@ export default function App() {
                 }
               >
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/weight" element={<WeightPage />} />
                 <Route path="/lifting" element={<LiftingPage />} />
                 <Route path="/lifting/exercises" element={<ExerciseLibraryPage />} />

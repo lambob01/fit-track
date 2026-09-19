@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  addDaysToDateKey,
+  formatDateKey,
   formatLocal,
   fromLocalDateTimeInput,
   localDateKey,
+  mondayOfDateKey,
   toLocalDateTimeInput,
+  todayDateKey,
 } from './datetime'
 
 describe('datetime', () => {
@@ -37,5 +41,36 @@ describe('datetime-local input conversion', () => {
     expect(
       fromLocalDateTimeInput(toLocalDateTimeInput(iso, 'Europe/London'), 'Europe/London'),
     ).toBe(iso)
+  })
+})
+
+describe('calendar date keys', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("resolves today's date in the user timezone", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-19T02:00:00Z'))
+
+    expect(todayDateKey('America/New_York')).toBe('2026-09-18')
+    expect(todayDateKey('UTC')).toBe('2026-09-19')
+  })
+
+  it('adds days across month and year boundaries', () => {
+    expect(addDaysToDateKey('2026-01-31', 1)).toBe('2026-02-01')
+    expect(addDaysToDateKey('2025-12-31', 1)).toBe('2026-01-01')
+    expect(addDaysToDateKey('2026-03-01', -1)).toBe('2026-02-28')
+  })
+
+  it('snaps any day of the week to Monday', () => {
+    expect(mondayOfDateKey('2026-09-14')).toBe('2026-09-14')
+    expect(mondayOfDateKey('2026-09-17')).toBe('2026-09-14')
+    expect(mondayOfDateKey('2026-09-19')).toBe('2026-09-14')
+    expect(mondayOfDateKey('2026-09-20')).toBe('2026-09-14')
+  })
+
+  it('formats a date key without timezone conversion', () => {
+    expect(formatDateKey('2026-09-19', 'EEE MMM d')).toBe('Sat Sep 19')
   })
 })

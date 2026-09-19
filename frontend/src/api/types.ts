@@ -375,3 +375,60 @@ export interface WeightSeries {
   trend: WeightTrend | null
   goal_weight_kg: number | null
 }
+
+export interface PlanSlot {
+  id: string
+  day_of_week: number
+  template_id: string | null
+  template_name: string | null
+}
+
+export interface PlanSlotInput {
+  day_of_week: number
+  template_id: string | null
+}
+
+export interface Plan {
+  id: string
+  name: string
+  is_active: boolean
+  slots: PlanSlot[]
+}
+
+export interface PlanInput {
+  name: string
+  is_active?: boolean
+  slots: PlanSlotInput[]
+}
+
+export interface PlanPatch {
+  name?: string
+  slots?: PlanSlotInput[]
+}
+
+export interface CalendarDay {
+  date: string
+  day_of_week: number
+  template_id: string | null
+  template_name: string | null
+  completed: boolean
+  workout_ids: string[]
+}
+
+export interface CalendarAdherence {
+  planned_days: number
+  completed_days: number
+}
+
+export interface CalendarPlanRef {
+  id: string
+  name: string
+}
+
+export interface CalendarWeek {
+  week_start: string
+  week_end: string
+  plan: CalendarPlanRef | null
+  days: CalendarDay[]
+  adherence: CalendarAdherence
+}

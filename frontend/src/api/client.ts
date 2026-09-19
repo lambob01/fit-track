@@ -1,4 +1,5 @@
 import type {
+  CalendarWeek,
   CardioActivity,
   CardioActivityInput,
   CardioSummary,
@@ -15,6 +16,9 @@ import type {
   ImportCounts,
   LastPerformance,
   LoginRequest,
+  Plan,
+  PlanInput,
+  PlanPatch,
   SetInput,
   SetPatch,
   Settings,
@@ -230,6 +234,22 @@ export const templatesApi = {
   update: (id: string, patch: TemplatePatch) =>
     api<Template>(`/api/templates/${id}`, jsonRequest('PATCH', patch)),
   remove: (id: string) => api<void>(`/api/templates/${id}`, { method: 'DELETE' }),
+}
+
+export const plansApi = {
+  list: () => api<Plan[]>('/api/plans'),
+  create: (input: PlanInput) => api<Plan>('/api/plans', jsonRequest('POST', input)),
+  update: (id: string, patch: PlanPatch) =>
+    api<Plan>(`/api/plans/${id}`, jsonRequest('PATCH', patch)),
+  remove: (id: string) => api<void>(`/api/plans/${id}`, { method: 'DELETE' }),
+  activate: (id: string) => api<Plan>(`/api/plans/${id}/activate`, jsonRequest('POST')),
+}
+
+export const calendarApi = {
+  week: (weekStart?: string) => {
+    const suffix = weekStart === undefined ? '' : `?week_start=${weekStart}`
+    return api<CalendarWeek>(`/api/calendar${suffix}`)
+  },
 }
 
 export interface WeightSeriesParams {
