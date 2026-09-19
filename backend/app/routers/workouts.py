@@ -25,6 +25,7 @@ from app.schemas.workout import (
     ProgressOut,
     ProgressSessionOut,
     PrsOut,
+    ReorderSetsIn,
     RepsPrOut,
     SessionVolumePrOut,
     SetIn,
@@ -567,6 +568,44 @@ def add_set(
     _commit_or_409(db)
     db.refresh(entry)
     return SetOut.model_validate(entry)
+
+
+@router.post(
+    "/api/workout-exercises/{workout_exercise_id}/reorder-sets",
+    response_model=list[SetOut],
+)
+def reorder_sets(
+    workout_exercise_id: UUID,
+    payload: ReorderSetsIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[SetOut]:
+    item = _get_owned_workout_exercise(db, user, workout_exercise_id)
+    entries = list(
+        db.scalars(select(SetEntry).where(SetEntry.workout_exercise_id == item.id))
+    )
+    by_id = {entry.id: entry for entry in entries}
+    if len(payload.set_ids) != len(entries) or set(payload.set_ids) != set(by_id):
+        raise HTTPException(
+            status_code=422,
+            detail="set_ids must be a permutation of the exercise's sets",
+        )
+    ordered = [by_id[set_id] for set_id in payload.set_ids]
+    # Shift first so swaps do not trip the (workout_exercise_id, set_number) unique
+    # constraint; offset by the current maximum so every shifted value exceeds every
+    # original, including when the numbers are gapped (e.g. [1, 3]).
+    offset = max((entry.set_number for entry in entries), default=0)
+    try:
+        for entry in entries:
+            entry.set_number += offset
+        db.flush()
+        for index, entry in enumerate(ordered):
+            entry.set_number = index + 1
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Conflict with existing data") from exc
+    return _sets_out(ordered)
 
 
 @router.patch("/api/sets/{set_id}", response_model=SetOut)

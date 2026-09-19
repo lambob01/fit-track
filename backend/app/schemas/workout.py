@@ -192,6 +192,12 @@ class SetPatch(BaseModel):
         return self
 
 
+class ReorderSetsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    set_ids: list[UUID]
+
+
 class ProgressSessionOut(BaseModel):
     workout_id: UUID
     performed_at: datetime
