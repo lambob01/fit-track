@@ -301,59 +301,61 @@ export function ExerciseLibraryPage() {
       ) : (
         <ul className="rounded-xl border border-line bg-surface-raised px-4">
           {filtered.map((exercise) => (
-            <li
-              key={exercise.id}
-              className="flex items-start justify-between gap-3 border-t border-line py-3 first:border-t-0"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{exercise.name}</span>
-                  {exercise.is_archived && (
-                    <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-content-muted">
-                      Archived
-                    </span>
-                  )}
-                  {exercise.is_compound && (
-                    <span className="rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-medium text-accent">
-                      Compound
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 text-xs text-content-muted">
-                  {[
-                    exercise.category,
-                    exercise.muscle_group,
-                    exercise.equipment !== 'other' ? exercise.equipment : null,
-                  ]
-                    .filter((value) => value !== null && value !== '' && value !== 'other')
-                    .join(' · ') || 'other'}
-                </p>
-              </div>
+            <li key={exercise.id} className="border-t border-line first:border-t-0">
+              <div className="flex items-start justify-between gap-3 py-3">
+                <Link
+                  to={`/lifting/exercises/${exercise.id}`}
+                  className="min-w-0 flex-1 rounded-lg transition-colors hover:text-accent"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{exercise.name}</span>
+                    {exercise.is_archived && (
+                      <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-content-muted">
+                        Archived
+                      </span>
+                    )}
+                    {exercise.is_compound && (
+                      <span className="rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-medium text-accent">
+                        Compound
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-content-muted">
+                    {[
+                      exercise.category,
+                      exercise.muscle_group,
+                      exercise.equipment !== 'other' ? exercise.equipment : null,
+                    ]
+                      .filter((value) => value !== null && value !== '' && value !== 'other')
+                      .join(' · ') || 'other'}
+                  </p>
+                </Link>
 
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => openEdit(exercise)}
-                  className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={
-                    archiveMutation.isPending &&
-                    archiveMutation.variables?.id === exercise.id
-                  }
-                  onClick={() =>
-                    archiveMutation.mutate({
-                      id: exercise.id,
-                      isArchived: !exercise.is_archived,
-                    })
-                  }
-                  className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
-                >
-                  {exercise.is_archived ? 'Restore' : 'Archive'}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(exercise)}
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      archiveMutation.isPending &&
+                      archiveMutation.variables?.id === exercise.id
+                    }
+                    onClick={() =>
+                      archiveMutation.mutate({
+                        id: exercise.id,
+                        isArchived: !exercise.is_archived,
+                      })
+                    }
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                  >
+                    {exercise.is_archived ? 'Restore' : 'Archive'}
+                  </button>
+                </div>
               </div>
             </li>
           ))}

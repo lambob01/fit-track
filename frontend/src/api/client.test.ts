@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, ApiError, apiText } from './client'
+import { api, ApiError, apiText, exercisesApi } from './client'
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -57,5 +57,25 @@ describe('error details', () => {
     )
 
     await expect(apiText('/api/export/sets.csv')).rejects.toMatchObject({ status: 502 })
+  })
+})
+
+describe('exercise progress query params', () => {
+  it('omits reps when the metric does not need it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, 200))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await exercisesApi.progress('e1', { from: 'a', to: 'b' })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/exercises/e1/progress?from=a&to=b')
+  })
+
+  it('passes reps only when supplied', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, 200))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await exercisesApi.progress('e1', { from: 'a', to: 'b', reps: 5 })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/exercises/e1/progress?from=a&to=b&reps=5')
   })
 })

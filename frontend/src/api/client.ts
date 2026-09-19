@@ -205,6 +205,7 @@ export interface ExerciseListParams {
 export interface ExerciseProgressParams {
   from: string
   to: string
+  reps?: number
 }
 
 export const exercisesApi = {
@@ -227,6 +228,9 @@ export const exercisesApi = {
     api<Exercise>(`/api/exercises/${id}`, jsonRequest('PATCH', patch)),
   progress: (id: string, params: ExerciseProgressParams) => {
     const query = new URLSearchParams({ from: params.from, to: params.to })
+    if (params.reps !== undefined) {
+      query.set('reps', String(params.reps))
+    }
     return api<ExerciseProgress>(`/api/exercises/${id}/progress?${query.toString()}`)
   },
   prs: (id: string) => api<ExercisePrs>(`/api/exercises/${id}/prs`),

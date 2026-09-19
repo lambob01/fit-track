@@ -17,7 +17,9 @@ import type {
 import { useSettings } from '../../context/SettingsContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DeleteFlow } from '../../components/DeleteFlow'
+import { TrendingUpIcon } from '../../components/icons'
 import { formatLocal } from '../../lib/datetime'
+import type { DateRange } from '../../lib/dateRange'
 import { randomId } from '../../lib/uuid'
 import { formatWeight } from '../../lib/units'
 import { DownloadBackupButton } from '../settings/BackupFirst'
@@ -108,6 +110,7 @@ interface ExerciseGroupProps {
   planned: PlannedExercise | undefined
   unitSystem: UnitSystem
   timezone: string
+  progressRange: DateRange | undefined
   isAddingSet: boolean
   isRemoving: boolean
   isReordering: boolean
@@ -126,6 +129,7 @@ function ExerciseGroup({
   planned,
   unitSystem,
   timezone,
+  progressRange,
   isAddingSet,
   isRemoving,
   isReordering,
@@ -186,6 +190,7 @@ function ExerciseGroup({
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to={`/lifting/exercises/${item.exercise_id}`}
+              state={progressRange === undefined ? undefined : { range: progressRange }}
               className="truncate font-semibold tracking-tight hover:text-accent"
             >
               {exercise?.name ?? 'Exercise'}
@@ -216,13 +221,24 @@ function ExerciseGroup({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setConfirmRemoveOpen(true)}
-          className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
-        >
-          Remove
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link
+            to={`/lifting/exercises/${item.exercise_id}`}
+            state={progressRange === undefined ? undefined : { range: progressRange }}
+            aria-label={`View progress: ${exercise?.name ?? 'exercise'}`}
+            title="View progress"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-content-muted transition-colors hover:border-accent hover:text-accent"
+          >
+            <TrendingUpIcon className="h-5 w-5" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmRemoveOpen(true)}
+            className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+          >
+            Remove
+          </button>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -318,8 +334,11 @@ export function WorkoutLoggerPage() {
 
   const workout = workoutQuery.data
   const templateId = workout?.template_id ?? null
-  const statePlanned =
-    (location.state as { planned?: PlannedExercise[] } | null)?.planned ?? null
+  const locationState = location.state as
+    | { planned?: PlannedExercise[]; range?: DateRange }
+    | null
+  const statePlanned = locationState?.planned ?? null
+  const progressRange = locationState?.range
 
   const templateQuery = useQuery({
     queryKey: ['templates', templateId],
@@ -703,6 +722,7 @@ export function WorkoutLoggerPage() {
             planned={plannedByPosition.get(item.position)}
             unitSystem={unitSystem}
             timezone={timezone}
+            progressRange={progressRange}
             isAddingSet={addSetMutation.isPending && addSetMutation.variables?.itemId === item.id}
             isRemoving={
               removeExerciseMutation.isPending &&

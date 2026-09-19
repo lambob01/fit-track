@@ -1,7 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { ApiError, exercisesApi } from '../../api/client'
 import type { ExercisePrs, UnitSystem } from '../../api/types'
 import { ChartCard } from '../../components/ChartCard'
@@ -10,15 +18,29 @@ import { getPresetRange } from '../../lib/dateRange'
 import type { DateRange } from '../../lib/dateRange'
 import { formatLocal } from '../../lib/datetime'
 import { formatWeight } from '../../lib/units'
+import { ExerciseGoalForm } from './ExerciseGoalForm'
 import { QueryErrorNotice } from './QueryErrorNotice'
 import {
+  BODYWEIGHT_PROGRESS_METRICS,
   buildProgressData,
   buildProgressYDomain,
+  buildRequiredRatePoints,
+  effectiveSeriesKey,
+  formatSeriesAxisValue,
+  formatSeriesTooltipValue,
+  goalAppliesToSeries,
+  goalEstimateText,
+  goalShortLabel,
+  goalTargetLabel,
+  goalTargetValue,
   hasWeightedSessions,
+  mergeRequiredRatePoints,
   PROGRESS_METRICS,
   SERIES_META,
 } from './progressSeries'
-import type { ProgressMetric, ProgressSeriesKey } from './progressSeries'
+import type { ProgressSeriesKey, SeriesMeta } from './progressSeries'
+
+const REP_CHOICES = Array.from({ length: 12 }, (_, index) => index + 1)
 
 function errorDetail(error: unknown): string {
   if (error instanceof ApiError) {
@@ -32,14 +54,16 @@ function errorDetail(error: unknown): string {
 
 function MetricToggle({
   metric,
+  metrics,
   onChange,
 }: {
-  metric: ProgressMetric
-  onChange: (metric: ProgressMetric) => void
+  metric: ProgressSeriesKey
+  metrics: { key: ProgressSeriesKey; label: string }[]
+  onChange: (metric: ProgressSeriesKey) => void
 }) {
   return (
     <div role="group" aria-label="Chart metric" className="flex flex-wrap gap-1.5">
-      {PROGRESS_METRICS.map(({ key, label }) => (
+      {metrics.map(({ key, label }) => (
         <button
           key={key}
           type="button"
@@ -56,6 +80,32 @@ function MetricToggle({
         </button>
       ))}
     </div>
+  )
+}
+
+function RepPicker({
+  reps,
+  onChange,
+}: {
+  reps: number
+  onChange: (reps: number) => void
+}) {
+  return (
+    <label className="flex min-h-11 items-center gap-2 text-xs font-medium text-content-muted">
+      Reps
+      <select
+        value={reps}
+        aria-label="Rep count for e1RM"
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm text-content focus:border-accent focus:outline-none"
+      >
+        {REP_CHOICES.map((value) => (
+          <option key={value} value={value}>
+            {value}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -116,7 +166,15 @@ function buildPrCards(prs: ExercisePrs, unitSystem: UnitSystem): PrCardData[] {
   ]
 }
 
-function PrCard({ card, timezone }: { card: PrCardData; timezone: string }) {
+function PrCard({
+  card,
+  timezone,
+  range,
+}: {
+  card: PrCardData
+  timezone: string
+  range: DateRange
+}) {
   return (
     <section className="rounded-xl border border-line bg-surface-raised p-3">
       <h3 className="text-xs font-medium text-content-muted">{card.label}</h3>
@@ -125,7 +183,11 @@ function PrCard({ card, timezone }: { card: PrCardData; timezone: string }) {
       card.workoutId === null ? (
         <p className="mt-1 text-xl font-semibold text-content-muted">—</p>
       ) : (
-        <Link to={`/lifting/workouts/${card.workoutId}`} className="mt-1 block">
+        <Link
+          to={`/lifting/workouts/${card.workoutId}`}
+          state={{ range }}
+          className="mt-1 block"
+        >
           <p className="text-xl font-semibold tabular-nums">{card.value}</p>
           {card.detail !== null && (
             <p className="mt-0.5 text-xs text-content-muted">{card.detail}</p>
@@ -139,11 +201,31 @@ function PrCard({ card, timezone }: { card: PrCardData; timezone: string }) {
   )
 }
 
+function chartTitle(seriesKey: ProgressSeriesKey, repCount: number): string {
+  if (seriesKey === 'e1rm_at_reps') {
+    return `e1RM at ${repCount} reps`
+  }
+  return SERIES_META[seriesKey].name
+}
+
+function yAllowDecimals(meta: SeriesMeta): boolean | undefined {
+  if (meta.isWeight) {
+    return undefined
+  }
+  return meta.unit === 'rpe'
+}
+
 export function ExerciseProgressPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const { unitSystem, timezone } = useSettings()
-  const [range, setRange] = useState<DateRange>(() => getPresetRange('90d', timezone))
-  const [metric, setMetric] = useState<ProgressMetric>('top_set')
+  const [range, setRange] = useState<DateRange>(() => {
+    const state = location.state as { range?: DateRange } | null
+    return state?.range ?? getPresetRange('90d', timezone)
+  })
+  const [metric, setMetric] = useState<ProgressSeriesKey>('top_set')
+  const [repCount, setRepCount] = useState(5)
+  const [goalFormOpen, setGoalFormOpen] = useState(false)
 
   const exercisesQuery = useQuery({
     queryKey: ['exercises', 'all'],
@@ -157,6 +239,17 @@ export function ExerciseProgressPage() {
     enabled: id !== undefined,
   })
 
+  const progress = progressQuery.data
+  const sessions = useMemo(() => progress?.sessions ?? [], [progress])
+  const hasWeighted = useMemo(() => hasWeightedSessions(sessions), [sessions])
+  const seriesKey = effectiveSeriesKey(metric, hasWeighted)
+
+  const repsQuery = useQuery({
+    queryKey: ['exercise-progress-reps', id, range.from, range.to, repCount],
+    queryFn: () => exercisesApi.progress(id!, { ...range, reps: repCount }),
+    enabled: id !== undefined && seriesKey === 'e1rm_at_reps',
+  })
+
   const prsQuery = useQuery({
     queryKey: ['exercise-prs', id],
     queryFn: () => exercisesApi.prs(id!),
@@ -168,20 +261,65 @@ export function ExerciseProgressPage() {
     [exercisesQuery.data, id],
   )
 
-  const sessions = useMemo(() => progressQuery.data?.sessions ?? [], [progressQuery.data])
-  const hasWeighted = useMemo(() => hasWeightedSessions(sessions), [sessions])
-  const seriesKey: ProgressSeriesKey = hasWeighted ? metric : 'reps_volume'
   const seriesMeta = SERIES_META[seriesKey]
 
-  const points = useMemo(() => buildProgressData(sessions, seriesKey), [sessions, seriesKey])
-  const yDomain = useMemo(() => buildProgressYDomain(points), [points])
-  const hasChartData = points.some((point) => point.value !== null)
+  const goal = progress?.goal ?? null
+  const goalValue = goalTargetValue(goal)
+  const showGoalOverlay =
+    goal !== null && goalValue !== null && goalAppliesToSeries(goal, seriesKey)
 
-  const emptyMessage = progressQuery.isPending
-    ? 'Loading chart…'
-    : sessions.length === 0
-      ? 'No sets logged in this range.'
-      : 'No data for this metric in this range.'
+  const estimatedPoints =
+    seriesKey === 'e1rm_at_reps' ? (repsQuery.data?.estimated_weight_at_reps ?? null) : null
+  const basePoints = useMemo(() => {
+    if (progress === undefined) {
+      return []
+    }
+    return buildProgressData(
+      seriesKey === 'e1rm_at_reps'
+        ? { ...progress, estimated_weight_at_reps: estimatedPoints }
+        : progress,
+      seriesKey,
+    )
+  }, [progress, seriesKey, estimatedPoints])
+  const requiredPoints = useMemo(
+    () => (showGoalOverlay && goal !== null ? buildRequiredRatePoints(goal, timezone) : []),
+    [showGoalOverlay, goal, timezone],
+  )
+  const points = useMemo(
+    () => mergeRequiredRatePoints(basePoints, requiredPoints),
+    [basePoints, requiredPoints],
+  )
+  const yDomain = useMemo(
+    () =>
+      buildProgressYDomain(
+        points,
+        showGoalOverlay && goalValue !== null ? [goalValue] : [],
+      ),
+    [points, showGoalOverlay, goalValue],
+  )
+  const hasChartData = points.some((point) => point.value !== null)
+  const repsPending = seriesKey === 'e1rm_at_reps' && repsQuery.isPending
+
+  const emptyMessage =
+    progressQuery.isPending || repsPending
+      ? 'Loading chart…'
+      : sessions.length === 0
+        ? 'No sets logged in this range.'
+        : seriesKey === 'avg_rpe'
+          ? 'No RPE data in this range.'
+          : seriesKey === 'e1rm_at_reps'
+            ? 'No e1RM data in this range.'
+            : 'No data for this metric in this range.'
+
+  const chartFailed = progressQuery.isError || (seriesKey === 'e1rm_at_reps' && repsQuery.isError)
+  const chartError = progressQuery.error ?? repsQuery.error
+
+  function refetchChart() {
+    void progressQuery.refetch()
+    if (seriesKey === 'e1rm_at_reps') {
+      void repsQuery.refetch()
+    }
+  }
 
   const exerciseMeta =
     exercise === undefined
@@ -195,6 +333,7 @@ export function ExerciseProgressPage() {
           .join(' · ')
 
   const prCards = prsQuery.data === undefined ? [] : buildPrCards(prsQuery.data, unitSystem)
+  const estimateText = goalEstimateText(goal)
 
   return (
     <div className="space-y-4">
@@ -221,6 +360,43 @@ export function ExerciseProgressPage() {
         />
       )}
 
+      <section className="rounded-xl border border-line bg-surface-raised p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold tracking-tight">Goal</h2>
+            {goal === null ? (
+              <p className="mt-1 text-sm text-content-muted">No goal set.</p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm font-medium">
+                  {goalTargetLabel(goal, unitSystem)}
+                </p>
+                {estimateText !== null && (
+                  <p className="mt-0.5 text-xs text-content-muted">{estimateText}</p>
+                )}
+              </>
+            )}
+          </div>
+          {exercise !== undefined && (
+            <button
+              type="button"
+              onClick={() => setGoalFormOpen(true)}
+              className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            >
+              {goal === null ? 'Set goal' : 'Edit goal'}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {goalFormOpen && exercise !== undefined && (
+        <ExerciseGoalForm
+          exercise={exercise}
+          hasWeightedSets={hasWeighted}
+          onClose={() => setGoalFormOpen(false)}
+        />
+      )}
+
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold tracking-tight">Personal records</h2>
@@ -238,32 +414,37 @@ export function ExerciseProgressPage() {
         ) : (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {prCards.map((card) => (
-              <PrCard key={card.label} card={card} timezone={timezone} />
+              <PrCard key={card.label} card={card} timezone={timezone} range={range} />
             ))}
           </div>
         )}
       </section>
 
-      {progressQuery.isError ? (
+      {chartFailed ? (
         <QueryErrorNotice
           message="Could not load exercise progress."
-          detail={errorDetail(progressQuery.error)}
-          onRetry={() => void progressQuery.refetch()}
+          detail={errorDetail(chartError)}
+          onRetry={refetchChart}
         />
       ) : (
         <ChartCard
-          title={hasWeighted ? 'Exercise progress' : 'Reps per session'}
+          title={chartTitle(seriesKey, repCount)}
           range={range}
           onRangeChange={setRange}
           hasData={hasChartData}
           emptyMessage={emptyMessage}
           actions={
-            hasWeighted ? (
-              <MetricToggle metric={metric} onChange={setMetric} />
-            ) : sessions.length > 0 ? (
-              <span className="min-h-11 rounded-full border border-accent bg-accent px-3 text-xs font-medium leading-11 text-surface">
-                Reps
-              </span>
+            hasWeighted || sessions.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <MetricToggle
+                  metric={seriesKey}
+                  metrics={hasWeighted ? PROGRESS_METRICS : BODYWEIGHT_PROGRESS_METRICS}
+                  onChange={setMetric}
+                />
+                {seriesKey === 'e1rm_at_reps' && (
+                  <RepPicker reps={repCount} onChange={setRepCount} />
+                )}
+              </div>
             ) : undefined
           }
         >
@@ -284,18 +465,16 @@ export function ExerciseProgressPage() {
             <YAxis
               domain={yDomain}
               tickFormatter={(value: number) =>
-                seriesMeta.isWeight ? formatWeight(value, unitSystem) : String(value)
+                formatSeriesAxisValue(value, seriesMeta, unitSystem)
               }
               tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
               stroke="var(--color-line)"
               width={58}
-              allowDecimals={!seriesMeta.isWeight ? false : undefined}
+              allowDecimals={yAllowDecimals(seriesMeta)}
             />
             <Tooltip
               formatter={(value, name) => [
-                seriesMeta.isWeight
-                  ? formatWeight(Number(value), unitSystem)
-                  : `${Number(value)} reps`,
+                formatSeriesTooltipValue(Number(value), seriesMeta, unitSystem),
                 name,
               ]}
               labelFormatter={(label) =>
@@ -312,6 +491,19 @@ export function ExerciseProgressPage() {
               labelStyle={{ color: 'var(--color-content-muted)' }}
               itemStyle={{ color: 'var(--color-content)' }}
             />
+            {showGoalOverlay && goal !== null && goalValue !== null && requiredPoints.length === 0 && (
+              <ReferenceLine
+                y={goalValue}
+                stroke="var(--color-content-muted)"
+                strokeWidth={1}
+                label={{
+                  value: `Goal ${goalShortLabel(goal, unitSystem)}`,
+                  position: 'insideBottomRight',
+                  fill: 'var(--color-content-muted)',
+                  fontSize: 11,
+                }}
+              />
+            )}
             <Line
               type="monotone"
               dataKey="value"
@@ -319,6 +511,16 @@ export function ExerciseProgressPage() {
               stroke="var(--color-accent)"
               strokeWidth={2}
               dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-accent)' }}
+              connectNulls
+            />
+            <Line
+              type="linear"
+              dataKey="requiredRate"
+              name="Required rate"
+              stroke="var(--color-content-muted)"
+              strokeWidth={1.5}
+              strokeDasharray="2 4"
+              dot={false}
               connectNulls
             />
           </LineChart>

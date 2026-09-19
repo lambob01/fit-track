@@ -138,3 +138,12 @@ export function ChevronDownIcon(props: IconProps) {
     </Icon>
   )
 }
+
+export function TrendingUpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m3 17 6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </Icon>
+  )
+}

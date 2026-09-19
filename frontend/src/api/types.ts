@@ -290,6 +290,10 @@ export interface Exercise {
   equipment: string
   is_compound: boolean
   is_archived: boolean
+  goal_weight_kg: number | null
+  goal_reps: number | null
+  goal_target_date: string | null
+  goal_reps_bodyweight: number | null
 }
 
 export interface ExerciseInput {
@@ -307,6 +311,10 @@ export interface ExercisePatch {
   equipment?: string
   is_compound?: boolean
   is_archived?: boolean
+  goal_weight_kg?: number | null
+  goal_reps?: number | null
+  goal_target_date?: string | null
+  goal_reps_bodyweight?: number | null
 }
 
 export interface ExerciseResolveResult {
@@ -409,8 +417,45 @@ export interface ProgressSession {
   reps_volume: number
 }
 
+export interface SetsPerWeekPoint {
+  week_start: string
+  sets: number
+}
+
+export interface AvgRpePoint {
+  performed_at: string
+  avg_rpe: number
+}
+
+export interface EstimatedWeightPoint {
+  performed_at: string
+  weight_kg: number
+}
+
+export type ExerciseGoalMode = 'weight' | 'bodyweight'
+
+export interface GoalRatePoint {
+  date: string
+  weight_kg: number | null
+  reps: number | null
+}
+
+export interface ExerciseGoal {
+  mode: ExerciseGoalMode
+  weight_kg: number | null
+  reps: number | null
+  target_date: string | null
+  required_rate_line: GoalRatePoint[] | null
+  on_track: OnTrackStatus | null
+  estimate_date: string | null
+}
+
 export interface ExerciseProgress {
   sessions: ProgressSession[]
+  sets_per_week: SetsPerWeekPoint[]
+  avg_rpe: AvgRpePoint[]
+  estimated_weight_at_reps: EstimatedWeightPoint[] | null
+  goal: ExerciseGoal | null
 }
 
 export interface WeightPr {
