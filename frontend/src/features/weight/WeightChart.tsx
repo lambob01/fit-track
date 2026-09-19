@@ -23,6 +23,7 @@ import { BMI_DISCLAIMER, calculateBmi } from '../../lib/bmi'
 import { dateKeyToTimestamp, formatLocal } from '../../lib/datetime'
 import { DAY_MS, DAYS_PER_MONTH, DAYS_PER_WEEK, projectWeight } from '../../lib/goals'
 import { formatWeight } from '../../lib/units'
+import { WeightLegend } from './WeightLegend'
 
 const BUCKETS: { key: WeightBucket; short: string; label: string }[] = [
   { key: 'day', short: 'D', label: 'Day' },
@@ -484,6 +485,20 @@ export function WeightChart({
           )}
         </LineChart>
       </ChartCard>
+      {hasData && (
+        <WeightLegend
+          showWeekly={shown.weekly}
+          showMonthly={shown.monthly}
+          showDated={shown.dated}
+          showFinal={shown.final}
+          hasDatedTarget={hasDatedTarget}
+          finalKg={finalKg}
+          monthlyTargetKg={monthlyTargetKg}
+          weeklyRateKg={weeklyRate}
+          monthlyRateKg={monthlyRateKg}
+          showBmi={showBmi}
+        />
+      )}
       {showBmi && <p className="text-xs text-content-muted">{BMI_DISCLAIMER}</p>}
     </>
   )
