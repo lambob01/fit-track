@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from app.schemas.plan import (
     CalendarDayOut,
     CalendarOut,
     CalendarPlanOut,
+    CalendarWeekOut,
     PlanIn,
     PlanOut,
     PlanPatch,
@@ -271,18 +272,14 @@ def _resolve_week_start(user: User, week_start: date | None) -> date:
     return week_start
 
 
-@router.get("/calendar", response_model=CalendarOut)
-def get_calendar(
-    week_start: date | None = None,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> CalendarOut:
-    tzinfo = ZoneInfo(user.timezone)
-    monday = _resolve_week_start(user, week_start)
-    local_start = datetime.combine(monday, time.min, tzinfo=tzinfo)
-    start = local_start.astimezone(UTC)
-    end = (local_start + timedelta(days=7)).astimezone(UTC)
-
+def _load_calendar_context(
+    db: Session, user: User, start: datetime, end: datetime
+) -> tuple[
+    WeeklyPlan | None,
+    dict[int, WeeklyPlanSlot],
+    dict[UUID, str],
+    dict[date, list[UUID]],
+]:
     plan = db.scalar(
         select(WeeklyPlan).where(
             WeeklyPlan.user_id == user.id, WeeklyPlan.is_active.is_(True)
@@ -311,37 +308,47 @@ def get_calendar(
         )
         .order_by(Workout.performed_at, Workout.id)
     ):
-        local_date = bucket_start(
-            stored_utc(workout.performed_at), user.timezone, "day"
-        ).astimezone(tzinfo).date()
-        workout_ids_by_date[local_date].append(workout.id)
-
-    days: list[CalendarDayOut] = []
-    planned_days = 0
-    completed_days = 0
-    for offset in range(7):
-        local_date = monday + timedelta(days=offset)
-        slot = slots_by_day.get(offset)
-        template_id = slot.template_id if slot is not None else None
-        if template_id is not None and template_id not in names:
-            template_id = None
-        workout_ids = workout_ids_by_date.get(local_date, [])
-        completed = bool(workout_ids)
-        if template_id is not None:
-            planned_days += 1
-            if completed:
-                completed_days += 1
-        days.append(
-            CalendarDayOut(
-                date=local_date,
-                day_of_week=offset,
-                template_id=template_id,
-                template_name=names.get(template_id) if template_id is not None else None,
-                completed=completed,
-                workout_ids=workout_ids,
-            )
+        local_date = (
+            bucket_start(stored_utc(workout.performed_at), user.timezone, "day")
+            .astimezone(ZoneInfo(user.timezone))
+            .date()
         )
+        workout_ids_by_date[local_date].append(workout.id)
+    return plan, slots_by_day, names, workout_ids_by_date
 
+
+def _calendar_day(
+    local_date: date,
+    slots_by_day: dict[int, WeeklyPlanSlot],
+    names: dict[UUID, str],
+    workout_ids_by_date: dict[date, list[UUID]],
+) -> CalendarDayOut:
+    slot = slots_by_day.get(local_date.weekday())
+    template_id = slot.template_id if slot is not None else None
+    if template_id is not None and template_id not in names:
+        template_id = None
+    workout_ids = workout_ids_by_date.get(local_date, [])
+    return CalendarDayOut(
+        date=local_date,
+        day_of_week=local_date.weekday(),
+        template_id=template_id,
+        template_name=names.get(template_id) if template_id is not None else None,
+        completed=bool(workout_ids),
+        workout_ids=workout_ids,
+    )
+
+
+def _calendar_body(
+    plan: WeeklyPlan | None,
+    days: list[CalendarDayOut],
+    start: datetime,
+    end: datetime,
+    weeks: list[CalendarWeekOut] | None,
+) -> CalendarOut:
+    planned_days = sum(1 for day in days if day.template_id is not None)
+    completed_days = sum(
+        1 for day in days if day.template_id is not None and day.completed
+    )
     return CalendarOut(
         week_start=start,
         week_end=end,
@@ -350,4 +357,90 @@ def get_calendar(
         adherence=CalendarAdherenceOut(
             planned_days=planned_days, completed_days=completed_days
         ),
+        weeks=weeks,
     )
+
+
+def _weeks_out(days: list[CalendarDayOut], tzinfo: ZoneInfo) -> list[CalendarWeekOut]:
+    by_monday: dict[date, list[CalendarDayOut]] = defaultdict(list)
+    for day in days:
+        by_monday[day.date - timedelta(days=day.date.weekday())].append(day)
+    weeks: list[CalendarWeekOut] = []
+    for monday in sorted(by_monday):
+        week_days = by_monday[monday]
+        planned_days = sum(1 for day in week_days if day.template_id is not None)
+        completed_days = sum(
+            1 for day in week_days if day.template_id is not None and day.completed
+        )
+        weeks.append(
+            CalendarWeekOut(
+                week_start=datetime.combine(
+                    monday, time.min, tzinfo=tzinfo
+                ).astimezone(UTC),
+                week_end=datetime.combine(
+                    monday + timedelta(days=7), time.min, tzinfo=tzinfo
+                ).astimezone(UTC),
+                planned_days=planned_days,
+                completed_days=completed_days,
+            )
+        )
+    return weeks
+
+
+def _range_calendar(from_: date, to: date, db: Session, user: User) -> CalendarOut:
+    tzinfo = ZoneInfo(user.timezone)
+    start = datetime.combine(from_, time.min, tzinfo=tzinfo).astimezone(UTC)
+    end = datetime.combine(
+        to + timedelta(days=1), time.min, tzinfo=tzinfo
+    ).astimezone(UTC)
+    plan, slots_by_day, names, workout_ids_by_date = _load_calendar_context(
+        db, user, start, end
+    )
+    days = [
+        _calendar_day(from_ + timedelta(days=offset), slots_by_day, names, workout_ids_by_date)
+        for offset in range((to - from_).days + 1)
+    ]
+    return _calendar_body(plan, days, start, end, _weeks_out(days, tzinfo))
+
+
+@router.get("/calendar", response_model=CalendarOut)
+def get_calendar(
+    week_start: date | None = None,
+    from_: date | None = Query(default=None, alias="from"),
+    to: date | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CalendarOut:
+    if (from_ is None) != (to is None):
+        raise HTTPException(
+            status_code=422, detail="from and to must be supplied together"
+        )
+    if from_ is not None:
+        assert to is not None
+        if week_start is not None:
+            raise HTTPException(
+                status_code=422, detail="week_start cannot be combined with from/to"
+            )
+        if from_ > to:
+            raise HTTPException(status_code=422, detail="from must be on or before to")
+        if (to - from_).days > 61:
+            raise HTTPException(
+                status_code=422, detail="range must span at most 62 dates"
+            )
+        return _range_calendar(from_, to, db, user)
+
+    tzinfo = ZoneInfo(user.timezone)
+    monday = _resolve_week_start(user, week_start)
+    local_start = datetime.combine(monday, time.min, tzinfo=tzinfo)
+    start = local_start.astimezone(UTC)
+    end = (local_start + timedelta(days=7)).astimezone(UTC)
+    plan, slots_by_day, names, workout_ids_by_date = _load_calendar_context(
+        db, user, start, end
+    )
+    days = [
+        _calendar_day(
+            monday + timedelta(days=offset), slots_by_day, names, workout_ids_by_date
+        )
+        for offset in range(7)
+    ]
+    return _calendar_body(plan, days, start, end, None)

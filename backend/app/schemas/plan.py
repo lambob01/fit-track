@@ -96,9 +96,17 @@ class CalendarAdherenceOut(BaseModel):
     completed_days: int
 
 
+class CalendarWeekOut(BaseModel):
+    week_start: datetime
+    week_end: datetime
+    planned_days: int
+    completed_days: int
+
+
 class CalendarOut(BaseModel):
     week_start: datetime
     week_end: datetime
     plan: CalendarPlanOut | None
     days: list[CalendarDayOut]
     adherence: CalendarAdherenceOut
+    weeks: list[CalendarWeekOut] | None = None
