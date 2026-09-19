@@ -5,7 +5,13 @@ import pytest
 
 def test_dashboard_empty(auth_client):
     body = auth_client.get("/api/dashboard").json()
-    assert set(body) == {"latest_weight", "weight_goal", "last_workout", "week_cardio"}
+    assert set(body) == {
+        "latest_weight",
+        "weight_goal",
+        "weight_goal_progress",
+        "last_workout",
+        "week_cardio",
+    }
     assert body["latest_weight"] is None
     assert body["weight_goal"] is None
     assert body["last_workout"] is None

@@ -1,8 +1,11 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 EPLEY_MAX_REPS = 12
 MOVING_AVERAGE_DAYS = 7
+DAYS_PER_WEEK = 7
+REQUIRED_RATE_TOLERANCE = 0.1
+EXPIRED = "expired"
 
 
 def epley_1rm(weight_kg: float | None, reps: int) -> float | None:
@@ -53,6 +56,84 @@ def linear_trend(entries):
         "from_value": intercept,
         "to_value": intercept + slope * xs[-1],
     }
+
+
+def required_rate_per_week(
+    current_value: float | None,
+    target_value: float | None,
+    target_date: date | None,
+    today: date | None = None,
+) -> float | str | None:
+    """Weekly change needed to reach ``target_value`` by ``target_date``.
+
+    Negative means a required decrease (cut), positive a required gain (bulk).
+    Returns ``"expired"`` when the target date is today or earlier (never
+    divides by zero/negative weeks) and ``None`` when an input is missing.
+    ``today`` lets callers pass the user's local date; it defaults to the UTC
+    date for callers without a user timezone.
+    """
+    if current_value is None or target_value is None or target_date is None:
+        return None
+    if today is None:
+        today = datetime.now(UTC).date()
+    remaining_days = (target_date - today).days
+    if remaining_days <= 0:
+        return EXPIRED
+    return (target_value - current_value) / (remaining_days / DAYS_PER_WEEK)
+
+
+def compare_rate(
+    trend_slope: float | None,
+    required_rate: float | str | None,
+    tolerance: float = REQUIRED_RATE_TOLERANCE,
+) -> str | None:
+    """Classify a trend slope against the required rate, direction-aware.
+
+    A negative required rate is a cut (more negative slope = ahead); a positive
+    required rate is a bulk (more positive slope = ahead).
+    """
+    if required_rate == EXPIRED:
+        return EXPIRED
+    if trend_slope is None or required_rate is None:
+        return None
+    delta = trend_slope - required_rate
+    if abs(delta) <= tolerance:
+        return "on_pace"
+    if required_rate < 0:
+        return "ahead" if delta < 0 else "behind"
+    return "ahead" if delta > 0 else "behind"
+
+
+def required_rate_line_points(
+    start_date: date,
+    start_value: float | None,
+    target_value: float | None,
+    target_date: date | None,
+) -> list[tuple[date, float]] | None:
+    """Weekly line points from ``start_date`` to the target, or None.
+
+    Straight-line interpolation: the slope between consecutive weekly points
+    equals ``required_rate_per_week``. ``None`` when inputs are missing or the
+    target date is not after the start date (expired/invalid).
+    """
+    if start_value is None or target_value is None or target_date is None:
+        return None
+    total_days = (target_date - start_date).days
+    if total_days <= 0:
+        return None
+    points = [(start_date, start_value)]
+    step = DAYS_PER_WEEK
+    while step < total_days:
+        fraction = step / total_days
+        points.append(
+            (
+                start_date + timedelta(days=step),
+                start_value + (target_value - start_value) * fraction,
+            )
+        )
+        step += DAYS_PER_WEEK
+    points.append((target_date, target_value))
+    return points
 
 
 def _local(dt_utc: datetime, tz: str) -> datetime:

@@ -1,10 +1,12 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 WeightBucket = Literal["day", "week", "month", "year"]
+OnTrackStatus = Literal["on_pace", "ahead", "behind", "expired"]
+MonthlyGoalMode = Literal["target", "rate"]
 
 
 def as_utc(value: datetime) -> datetime:
@@ -93,6 +95,23 @@ class WeightTrendOut(BaseModel):
     to_value: float
 
 
+class WeightMonthlyGoalOut(BaseModel):
+    mode: MonthlyGoalMode | None
+    target_kg: float | None
+    rate_kg_per_month: float | None
+
+
+class WeightGoalsOut(BaseModel):
+    final_weight_kg: float | None
+    rate_kg_per_week: float | None
+    monthly: WeightMonthlyGoalOut
+
+
+class RequiredRatePoint(BaseModel):
+    date: date
+    weight_kg: float
+
+
 class WeightSeriesOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -103,6 +122,9 @@ class WeightSeriesOut(BaseModel):
     moving_average: list[MovingAveragePoint]
     trend: WeightTrendOut | None
     goal_weight_kg: float | None
+    goals: WeightGoalsOut
+    required_rate_line: list[RequiredRatePoint] | None
+    on_track: OnTrackStatus | None
 
     @field_validator("from_", "to")
     @classmethod

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
@@ -10,16 +11,27 @@ from app.deps import get_current_user
 from app.models import User, WeightEntry
 from app.schemas.weight import (
     MovingAveragePoint,
+    RequiredRatePoint,
     WeightBucket,
     WeightEntryCreate,
     WeightEntryOut,
     WeightEntryPatch,
+    WeightGoalsOut,
+    WeightMonthlyGoalOut,
     WeightSeriesOut,
     WeightSeriesPoint,
     WeightTrendOut,
     stored_utc,
 )
-from app.services.analytics import last_in_bucket, linear_trend, moving_average
+from app.services.analytics import (
+    DAYS_PER_WEEK,
+    compare_rate,
+    last_in_bucket,
+    linear_trend,
+    moving_average,
+    required_rate_line_points,
+    required_rate_per_week,
+)
 
 router = APIRouter(
     prefix="/api/weight",
@@ -150,6 +162,26 @@ def weight_series(
     averages = moving_average(pairs)
     trend = linear_trend(pairs)
 
+    target_date = user.goal_weight_target_date
+    target_kg = user.goal_weight_target_kg
+    current_value = pairs[-1][1] if pairs else None
+    local_today = datetime.now(ZoneInfo(user.timezone)).date()
+    required_rate = required_rate_per_week(
+        current_value, target_kg, target_date, today=local_today
+    )
+
+    required_rate_line = None
+    if current_value is not None and target_kg is not None and target_date is not None:
+        start_dt = max(to_utc, datetime.now(UTC)).astimezone(ZoneInfo(user.timezone))
+        points = required_rate_line_points(start_dt.date(), current_value, target_kg, target_date)
+        if points is not None:
+            required_rate_line = [
+                RequiredRatePoint(date=point_date, weight_kg=weight)
+                for point_date, weight in points
+            ]
+
+    slope_per_week = trend["slope_per_day"] * DAYS_PER_WEEK if trend is not None else None
+
     return WeightSeriesOut(
         bucket=bucket,
         from_=from_utc,
@@ -164,4 +196,15 @@ def weight_series(
         ],
         trend=WeightTrendOut(**trend) if trend is not None else None,
         goal_weight_kg=user.goal_weight_kg,
+        goals=WeightGoalsOut(
+            final_weight_kg=user.goal_weight_kg,
+            rate_kg_per_week=user.goal_rate_kg_per_week,
+            monthly=WeightMonthlyGoalOut(
+                mode=user.goal_monthly_mode,
+                target_kg=user.goal_monthly_target_kg,
+                rate_kg_per_month=user.goal_monthly_rate_kg,
+            ),
+        ),
+        required_rate_line=required_rate_line,
+        on_track=compare_rate(slope_per_week, required_rate),
     )

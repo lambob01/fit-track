@@ -1,5 +1,44 @@
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
+
+PHASE2_GOAL_SETTINGS = (
+    "goal_rate_kg_per_week",
+    "goal_monthly_mode",
+    "goal_monthly_target_kg",
+    "goal_monthly_rate_kg",
+    "goal_weight_target_date",
+    "goal_weight_target_kg",
+    "height_cm",
+)
+
+
+def test_export_includes_phase2_goal_settings(auth_client):
+    unset = auth_client.get("/api/export/json").json()["settings"]
+    for field in PHASE2_GOAL_SETTINGS:
+        assert field in unset
+        assert unset[field] is None
+
+    target_date = (datetime.now(UTC).date() + timedelta(days=90)).isoformat()
+    auth_client.patch(
+        "/api/settings",
+        json={
+            "goal_rate_kg_per_week": -0.5,
+            "goal_monthly_mode": "target",
+            "goal_monthly_target_kg": 77.0,
+            "goal_weight_target_date": target_date,
+            "goal_weight_target_kg": 75.0,
+            "height_cm": 180.0,
+        },
+    )
+    exported = auth_client.get("/api/export/json").json()["settings"]
+    assert exported["goal_rate_kg_per_week"] == -0.5
+    assert exported["goal_monthly_mode"] == "target"
+    assert exported["goal_monthly_target_kg"] == 77.0
+    assert exported["goal_monthly_rate_kg"] is None
+    assert exported["goal_weight_target_date"] == target_date
+    assert exported["goal_weight_target_kg"] == 75.0
+    assert exported["height_cm"] == 180.0
 
 
 def test_export_round_trip_and_idempotent_import(auth_client, exercise):
