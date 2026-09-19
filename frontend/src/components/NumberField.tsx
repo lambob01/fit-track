@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEvent, FocusEvent, InputHTMLAttributes } from 'react'
-import { parseDecimalInput } from '../lib/parseNumber'
+import { parseDecimalInput, sanitizeDecimalInput } from '../lib/parseNumber'
 import { nextStepperValue } from '../lib/stepper'
 
 export interface NumberFieldProps
@@ -14,6 +14,7 @@ export interface NumberFieldProps
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void
   step?: number
   stepperLabel?: string
+  allowNegative?: boolean
 }
 
 interface EditingState {
@@ -50,6 +51,7 @@ export function NumberField({
   className,
   step,
   stepperLabel,
+  allowNegative = false,
   disabled,
   ...rest
 }: NumberFieldProps) {
@@ -66,8 +68,11 @@ export function NumberField({
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    setEditing((current) => ({ ...current, text: event.target.value }))
-    onChange(parseDecimalInput(event.target.value))
+    const raw = event.target.value
+    const sign = allowNegative && raw.trimStart().startsWith('-') ? '-' : ''
+    const text = sign + sanitizeDecimalInput(raw)
+    setEditing((current) => ({ ...current, text }))
+    onChange(parseDecimalInput(text))
   }
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {

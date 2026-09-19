@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { Settings } from '../../api/types'
 import {
+  buildGoalPatch,
   buildSettingsPatch,
   convertDraftUnits,
   distanceForDisplay,
   distanceToMeters,
   draftFromSettings,
+  goalDraftFromSettings,
   heightForDisplay,
   heightToCm,
+  validateGoalDraft,
   weightForDisplay,
   weightToKg,
 } from './settingsDraft'
@@ -45,35 +48,20 @@ describe('draftFromSettings', () => {
     expect(draft.timezone).toBe('UTC')
   })
 
-  it('converts stored goals to the display units of the stored unit system', () => {
+  it('converts stored height and weekly run goal to the display units of the stored unit system', () => {
     const imperial = draftFromSettings(
       { ...baseSettings, unit_system: 'imperial' },
       'Europe/Berlin',
     )
-    expect(imperial.goalWeight).toBe(176.4)
+    expect(imperial.height).toBe(70.9)
     expect(imperial.weeklyRunGoal).toBe(12.43)
     expect(imperial.maxHr).toBe(190)
   })
 
-  it('maps the extended goal fields into display units', () => {
-    const settings: Settings = {
-      ...baseSettings,
-      unit_system: 'imperial',
-      goal_monthly_mode: 'rate',
-      goal_monthly_target_kg: null,
-      goal_monthly_rate_kg: -2.5,
-      goal_weight_target_date: '2026-06-01',
-      goal_weight_target_kg: 78,
-    }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
-
-    expect(draft.goalRatePerWeek).toBe(-1.1)
-    expect(draft.goalMonthlyMode).toBe('rate')
-    expect(draft.goalMonthlyTarget).toBeNull()
-    expect(draft.goalMonthlyRate).toBe(-5.5)
-    expect(draft.goalTargetWeight).toBe(172)
-    expect(draft.goalTargetDate).toBe('2026-06-01')
-    expect(draft.height).toBe(70.9)
+  it('does not carry any weight goal fields', () => {
+    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    expect('goalWeight' in draft).toBe(false)
+    expect('goalMonthlyMode' in draft).toBe(false)
   })
 })
 
@@ -110,21 +98,21 @@ describe('convertDraftUnits', () => {
   it('converts display values and preserves touched flags', () => {
     const draft = {
       ...draftFromSettings(baseSettings, 'Europe/Berlin'),
-      goalWeight: 80.3,
+      height: 180,
       weeklyRunGoal: 5.1,
-      goalWeightTouched: true,
+      heightTouched: true,
       weeklyRunGoalTouched: true,
     }
 
     const imperial = convertDraftUnits(draft, 'imperial')
     expect(imperial.unitSystem).toBe('imperial')
-    expect(imperial.goalWeight).toBe(177)
+    expect(imperial.height).toBe(70.9)
     expect(imperial.weeklyRunGoal).toBe(3.17)
-    expect(imperial.goalWeightTouched).toBe(true)
+    expect(imperial.heightTouched).toBe(true)
     expect(imperial.weeklyRunGoalTouched).toBe(true)
 
     const back = convertDraftUnits(imperial, 'metric')
-    expect(back.goalWeight).toBe(80.3)
+    expect(back.height).toBe(180.1)
     expect(back.weeklyRunGoal).toBe(5.1)
   })
 
@@ -132,47 +120,173 @@ describe('convertDraftUnits', () => {
     const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
     expect(convertDraftUnits(draft, 'metric')).toBe(draft)
   })
+})
 
-  it('converts the extended goal fields between unit systems', () => {
+describe('goalDraftFromSettings', () => {
+  it('maps the stored goals into display units', () => {
     const settings: Settings = {
       ...baseSettings,
       unit_system: 'imperial',
       goal_monthly_mode: 'rate',
+      goal_monthly_target_kg: null,
       goal_monthly_rate_kg: -2.5,
       goal_weight_target_date: '2026-06-01',
       goal_weight_target_kg: 78,
-      height_cm: 180,
     }
-    const metric = convertDraftUnits(draftFromSettings(settings, 'Europe/Berlin'), 'metric')
+    const draft = goalDraftFromSettings(settings)
 
-    expect(metric.goalRatePerWeek).toBe(-0.5)
-    expect(metric.goalMonthlyRate).toBe(-2.5)
-    expect(metric.goalTargetWeight).toBe(78)
-    expect(metric.height).toBeCloseTo(180.1, 1)
+    expect(draft.goalWeight).toBe(176.4)
+    expect(draft.goalRatePerWeek).toBe(-1.1)
+    expect(draft.goalMonthlyMode).toBe('rate')
+    expect(draft.goalMonthlyTarget).toBeNull()
+    expect(draft.goalMonthlyRate).toBe(-5.5)
+    expect(draft.goalTargetWeight).toBe(172)
+    expect(draft.goalTargetDate).toBe('2026-06-01')
+  })
+
+  it('starts with every touched flag false', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(draft.goalWeightTouched).toBe(false)
+    expect(draft.goalRateTouched).toBe(false)
+    expect(draft.goalMonthlyTargetTouched).toBe(false)
+    expect(draft.goalMonthlyRateTouched).toBe(false)
+    expect(draft.goalTargetWeightTouched).toBe(false)
+    expect(draft.goalTargetDateTouched).toBe(false)
+  })
+
+  it('keeps missing goals as null', () => {
+    const settings: Settings = {
+      ...baseSettings,
+      goal_weight_kg: null,
+      goal_rate_kg_per_week: null,
+      goal_monthly_mode: null,
+      goal_monthly_target_kg: null,
+      goal_monthly_rate_kg: null,
+      goal_weight_target_kg: null,
+      goal_weight_target_date: null,
+    }
+    const draft = goalDraftFromSettings(settings)
+
+    expect(draft.goalWeight).toBeNull()
+    expect(draft.goalRatePerWeek).toBeNull()
+    expect(draft.goalMonthlyMode).toBeNull()
+    expect(draft.goalMonthlyTarget).toBeNull()
+    expect(draft.goalMonthlyRate).toBeNull()
+    expect(draft.goalTargetWeight).toBeNull()
+    expect(draft.goalTargetDate).toBeNull()
   })
 })
 
-describe('buildSettingsPatch goals', () => {
-  it('sends the edited weekly rate converted back to kg', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+describe('validateGoalDraft', () => {
+  it('accepts an empty draft', () => {
+    const settings: Settings = {
+      ...baseSettings,
+      goal_weight_kg: null,
+      goal_rate_kg_per_week: null,
+      goal_monthly_mode: null,
+      goal_monthly_target_kg: null,
+      goal_monthly_rate_kg: null,
+      goal_weight_target_kg: null,
+      goal_weight_target_date: null,
+    }
+    expect(validateGoalDraft(goalDraftFromSettings(settings))).toBeNull()
+  })
+
+  it('rejects a non-positive final goal weight', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(validateGoalDraft({ ...draft, goalWeight: 0 })).toBe(
+      'Goal weight must be greater than 0.',
+    )
+    expect(validateGoalDraft({ ...draft, goalWeight: -5 })).toBe(
+      'Goal weight must be greater than 0.',
+    )
+  })
+
+  it('rejects a zero weekly rate', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(validateGoalDraft({ ...draft, goalRatePerWeek: 0 })).toBe(
+      'Weekly rate must not be 0.',
+    )
+  })
+
+  it('rejects a zero monthly target or rate when that mode is active', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(validateGoalDraft({ ...draft, goalMonthlyMode: 'target', goalMonthlyTarget: 0 })).toBe(
+      'Monthly target weight must be greater than 0.',
+    )
+    expect(validateGoalDraft({ ...draft, goalMonthlyMode: 'rate', goalMonthlyRate: 0 })).toBe(
+      'Monthly rate must not be 0.',
+    )
+  })
+
+  it('requires the dated target fields to be set together', () => {
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, { ...draft, goalRatePerWeek: -0.8, goalRateTouched: true }),
+      validateGoalDraft({ ...draft, goalTargetWeight: 75, goalTargetDate: null }),
+    ).toBe('Enter both a target weight and target date, or clear both.')
+    expect(
+      validateGoalDraft({ ...draft, goalTargetWeight: null, goalTargetDate: '2026-06-01' }),
+    ).toBe('Enter both a target weight and target date, or clear both.')
+    expect(
+      validateGoalDraft({ ...draft, goalTargetWeight: 75, goalTargetDate: '2026-06-01' }),
+    ).toBeNull()
+  })
+
+  it('rejects a non-positive dated target weight', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(
+      validateGoalDraft({ ...draft, goalTargetWeight: 0, goalTargetDate: '2026-06-01' }),
+    ).toBe('Target weight must be greater than 0.')
+  })
+})
+
+describe('buildGoalPatch', () => {
+  it('sends nothing when the draft matches the stored goals', () => {
+    expect(buildGoalPatch(baseSettings, goalDraftFromSettings(baseSettings))).toEqual({})
+  })
+
+  it('sends the edited weekly rate converted back to kg', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(
+      buildGoalPatch(baseSettings, { ...draft, goalRatePerWeek: -0.8, goalRateTouched: true }),
     ).toEqual({ goal_rate_kg_per_week: -0.8 })
   })
 
   it('sends an explicit null when the weekly rate is cleared', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, { ...draft, goalRatePerWeek: null, goalRateTouched: true }),
+      buildGoalPatch(baseSettings, { ...draft, goalRatePerWeek: null, goalRateTouched: true }),
     ).toEqual({ goal_rate_kg_per_week: null })
   })
 
   it('omits a cleared weekly rate that was already null', () => {
     const settings = { ...baseSettings, goal_rate_kg_per_week: null }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(settings)
     expect(
-      buildSettingsPatch(settings, { ...draft, goalRatePerWeek: null, goalRateTouched: true }),
+      buildGoalPatch(settings, { ...draft, goalRatePerWeek: null, goalRateTouched: true }),
     ).toEqual({})
+  })
+
+  it('sends the edited final goal weight converted back to kg', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(
+      buildGoalPatch(baseSettings, { ...draft, goalWeight: 82.5, goalWeightTouched: true }),
+    ).toEqual({ goal_weight_kg: 82.5 })
+  })
+
+  it('sends an explicit null when the final goal weight is cleared', () => {
+    const draft = goalDraftFromSettings(baseSettings)
+    expect(
+      buildGoalPatch(baseSettings, { ...draft, goalWeight: null, goalWeightTouched: true }),
+    ).toEqual({ goal_weight_kg: null })
+  })
+
+  it('converts an imperial final goal weight to kilograms', () => {
+    const settings = { ...baseSettings, unit_system: 'imperial' as const }
+    const draft = goalDraftFromSettings(settings)
+    expect(
+      buildGoalPatch(settings, { ...draft, goalWeight: 180, goalWeightTouched: true }),
+    ).toEqual({ goal_weight_kg: 81.647 })
   })
 
   it('sends the monthly mode with its value when the mode is first set', () => {
@@ -182,9 +296,9 @@ describe('buildSettingsPatch goals', () => {
       goal_monthly_target_kg: null,
       goal_monthly_rate_kg: null,
     }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(settings)
     expect(
-      buildSettingsPatch(settings, {
+      buildGoalPatch(settings, {
         ...draft,
         goalMonthlyMode: 'target',
         goalMonthlyTarget: 75,
@@ -194,9 +308,9 @@ describe('buildSettingsPatch goals', () => {
   })
 
   it('sends the matching value when the monthly mode switches', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, {
+      buildGoalPatch(baseSettings, {
         ...draft,
         goalMonthlyMode: 'rate',
         goalMonthlyRate: -2,
@@ -206,9 +320,9 @@ describe('buildSettingsPatch goals', () => {
   })
 
   it('sends only the touched monthly value when the mode is unchanged', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, {
+      buildGoalPatch(baseSettings, {
         ...draft,
         goalMonthlyTarget: 77,
         goalMonthlyTargetTouched: true,
@@ -217,9 +331,9 @@ describe('buildSettingsPatch goals', () => {
   })
 
   it('clears the monthly goal when its active value is cleared', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, {
+      buildGoalPatch(baseSettings, {
         ...draft,
         goalMonthlyTarget: null,
         goalMonthlyTargetTouched: true,
@@ -228,9 +342,9 @@ describe('buildSettingsPatch goals', () => {
   })
 
   it('sets both dated target fields together', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(baseSettings)
     expect(
-      buildSettingsPatch(baseSettings, {
+      buildGoalPatch(baseSettings, {
         ...draft,
         goalTargetWeight: 78,
         goalTargetWeightTouched: true,
@@ -242,9 +356,9 @@ describe('buildSettingsPatch goals', () => {
 
   it('converts a dated target weight from imperial pounds', () => {
     const settings = { ...baseSettings, unit_system: 'imperial' as const }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(settings)
     expect(
-      buildSettingsPatch(settings, {
+      buildGoalPatch(settings, {
         ...draft,
         goalTargetWeight: 172,
         goalTargetWeightTouched: true,
@@ -261,9 +375,9 @@ describe('buildSettingsPatch goals', () => {
       goal_weight_target_kg: 78,
       goal_weight_target_date: '2026-06-01',
     }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(settings)
     expect(
-      buildSettingsPatch(settings, {
+      buildGoalPatch(settings, {
         ...draft,
         goalTargetDate: '2026-07-01',
         goalTargetDateTouched: true,
@@ -277,9 +391,9 @@ describe('buildSettingsPatch goals', () => {
       goal_weight_target_kg: 78,
       goal_weight_target_date: '2026-06-01',
     }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
+    const draft = goalDraftFromSettings(settings)
     expect(
-      buildSettingsPatch(settings, {
+      buildGoalPatch(settings, {
         ...draft,
         goalTargetDate: null,
         goalTargetDateTouched: true,
@@ -294,8 +408,52 @@ describe('buildSettingsPatch goals', () => {
       goal_weight_target_kg: 78,
       goal_weight_target_date: '2026-06-01',
     }
+    const draft = goalDraftFromSettings(settings)
+    expect(buildGoalPatch(settings, draft)).toEqual({})
+  })
+})
+
+describe('buildSettingsPatch', () => {
+  it('sends nothing when the draft matches the stored settings', () => {
+    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    expect(buildSettingsPatch(baseSettings, draft)).toEqual({})
+  })
+
+  it('sends only the unit system when a display value changed via conversion only', () => {
+    const draft = convertDraftUnits(
+      draftFromSettings(baseSettings, 'Europe/Berlin'),
+      'imperial',
+    )
+    expect(buildSettingsPatch(baseSettings, draft)).toEqual({ unit_system: 'imperial' })
+  })
+
+  it('trims the timezone and omits it when unchanged', () => {
+    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    expect(buildSettingsPatch(baseSettings, { ...draft, timezone: ' Europe/Berlin ' })).toEqual({})
+    expect(
+      buildSettingsPatch(baseSettings, { ...draft, timezone: ' America/New_York ' }),
+    ).toEqual({ timezone: 'America/New_York' })
+  })
+
+  it('sends an explicit null when a value is cleared', () => {
+    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
+    expect(
+      buildSettingsPatch(baseSettings, { ...draft, weeklyRunGoal: null, weeklyRunGoalTouched: true }),
+    ).toEqual({ weekly_run_goal_m: null })
+    expect(
+      buildSettingsPatch(baseSettings, { ...draft, maxHr: null, maxHrTouched: true }),
+    ).toEqual({ max_hr: null })
+    expect(
+      buildSettingsPatch(baseSettings, { ...draft, height: null, heightTouched: true }),
+    ).toEqual({ height_cm: null })
+  })
+
+  it('omits a cleared value that was already null', () => {
+    const settings = { ...baseSettings, weekly_run_goal_m: null }
     const draft = draftFromSettings(settings, 'Europe/Berlin')
-    expect(buildSettingsPatch(settings, draft)).toEqual({})
+    expect(
+      buildSettingsPatch(settings, { ...draft, weeklyRunGoal: null, weeklyRunGoalTouched: true }),
+    ).toEqual({})
   })
 
   it('converts height to centimeters and clears it with null', () => {
@@ -318,60 +476,9 @@ describe('buildSettingsPatch goals', () => {
       height_cm: null,
     })
   })
-})
 
-describe('buildSettingsPatch', () => {
-  it('sends nothing when the draft matches the stored settings', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
-    expect(buildSettingsPatch(baseSettings, draft)).toEqual({})
-  })
-
-  it('sends only the unit system when a goal display value changed via conversion only', () => {
-    const draft = convertDraftUnits(
-      draftFromSettings(baseSettings, 'Europe/Berlin'),
-      'imperial',
-    )
-    expect(buildSettingsPatch(baseSettings, draft)).toEqual({ unit_system: 'imperial' })
-  })
-
-  it('trims the timezone and omits it when unchanged', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
-    expect(buildSettingsPatch(baseSettings, { ...draft, timezone: ' Europe/Berlin ' })).toEqual({})
-    expect(
-      buildSettingsPatch(baseSettings, { ...draft, timezone: ' America/New_York ' }),
-    ).toEqual({ timezone: 'America/New_York' })
-  })
-
-  it('sends an explicit null when a goal is cleared', () => {
-    const draft = draftFromSettings(baseSettings, 'Europe/Berlin')
-    expect(
-      buildSettingsPatch(baseSettings, { ...draft, goalWeight: null, goalWeightTouched: true }),
-    ).toEqual({ goal_weight_kg: null })
-    expect(
-      buildSettingsPatch(baseSettings, { ...draft, weeklyRunGoal: null, weeklyRunGoalTouched: true }),
-    ).toEqual({ weekly_run_goal_m: null })
-    expect(
-      buildSettingsPatch(baseSettings, { ...draft, maxHr: null, maxHrTouched: true }),
-    ).toEqual({ max_hr: null })
-  })
-
-  it('omits a cleared goal that was already null', () => {
-    const settings = { ...baseSettings, goal_weight_kg: null }
-    const draft = draftFromSettings(settings, 'Europe/Berlin')
-    expect(
-      buildSettingsPatch(settings, { ...draft, goalWeight: null, goalWeightTouched: true }),
-    ).toEqual({})
-  })
-
-  it('sends edited goal values converted back to canonical units', () => {
+  it('sends edited values converted back to canonical units', () => {
     const metricDraft = draftFromSettings(baseSettings, 'Europe/Berlin')
-    expect(
-      buildSettingsPatch(baseSettings, {
-        ...metricDraft,
-        goalWeight: 82.5,
-        goalWeightTouched: true,
-      }),
-    ).toEqual({ goal_weight_kg: 82.5 })
     expect(
       buildSettingsPatch(baseSettings, {
         ...metricDraft,
@@ -381,12 +488,9 @@ describe('buildSettingsPatch', () => {
     ).toEqual({ weekly_run_goal_m: 21500 })
   })
 
-  it('converts edited imperial goals to canonical units', () => {
+  it('converts edited imperial values to canonical units', () => {
     const settings = { ...baseSettings, unit_system: 'imperial' as const }
     const draft = draftFromSettings(settings, 'Europe/Berlin')
-    expect(
-      buildSettingsPatch(settings, { ...draft, goalWeight: 180, goalWeightTouched: true }),
-    ).toEqual({ goal_weight_kg: 81.647 })
     expect(
       buildSettingsPatch(settings, { ...draft, weeklyRunGoal: 13.1, weeklyRunGoalTouched: true }),
     ).toEqual({ weekly_run_goal_m: 21082 })
@@ -404,11 +508,7 @@ describe('buildSettingsPatch', () => {
 
   it('combines independent changes into one patch', () => {
     const draft = convertDraftUnits(
-      {
-        ...draftFromSettings(baseSettings, 'Europe/Berlin'),
-        goalWeight: null,
-        goalWeightTouched: true,
-      },
+      draftFromSettings(baseSettings, 'Europe/Berlin'),
       'imperial',
     )
     expect(
@@ -421,7 +521,6 @@ describe('buildSettingsPatch', () => {
     ).toEqual({
       unit_system: 'imperial',
       timezone: 'America/New_York',
-      goal_weight_kg: null,
       max_hr: 185,
     })
   })

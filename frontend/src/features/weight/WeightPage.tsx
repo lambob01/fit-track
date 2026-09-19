@@ -12,6 +12,8 @@ import { formatLocal } from '../../lib/datetime'
 import { formatWeight } from '../../lib/units'
 import { WeightChart } from './WeightChart'
 import { WeightForm } from './WeightForm'
+import { WeightGoalsSection } from './WeightGoalsSection'
+import { WeightQuickEntry } from './WeightQuickEntry'
 
 const BMI_SCALE_MIN = 15
 const BMI_SCALE_MAX = 40
@@ -168,6 +170,10 @@ export function WeightPage() {
           </button>
         )}
       </div>
+
+      <WeightQuickEntry />
+
+      <WeightGoalsSection />
 
       {formVisible && (
         <div ref={formRef}>

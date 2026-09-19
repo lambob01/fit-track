@@ -6,6 +6,15 @@ const DEFAULT_TIMEZONE = 'UTC'
 export interface SettingsDraft {
   unitSystem: UnitSystem
   timezone: string
+  height: number | null
+  weeklyRunGoal: number | null
+  maxHr: number | null
+  heightTouched: boolean
+  weeklyRunGoalTouched: boolean
+  maxHrTouched: boolean
+}
+
+export interface GoalDraft {
   goalWeight: number | null
   goalRatePerWeek: number | null
   goalMonthlyMode: MonthlyGoalMode | null
@@ -13,18 +22,12 @@ export interface SettingsDraft {
   goalMonthlyRate: number | null
   goalTargetWeight: number | null
   goalTargetDate: string | null
-  height: number | null
-  weeklyRunGoal: number | null
-  maxHr: number | null
   goalWeightTouched: boolean
   goalRateTouched: boolean
   goalMonthlyTargetTouched: boolean
   goalMonthlyRateTouched: boolean
   goalTargetWeightTouched: boolean
   goalTargetDateTouched: boolean
-  heightTouched: boolean
-  weeklyRunGoalTouched: boolean
-  maxHrTouched: boolean
 }
 
 export function detectBrowserTimezone(): string {
@@ -90,22 +93,9 @@ export function draftFromSettings(settings: Settings, browserTimezone = ''): Set
   return {
     unitSystem: settings.unit_system,
     timezone,
-    goalWeight: weightForDisplay(settings.goal_weight_kg, settings.unit_system),
-    goalRatePerWeek: weightForDisplay(settings.goal_rate_kg_per_week, settings.unit_system),
-    goalMonthlyMode: settings.goal_monthly_mode,
-    goalMonthlyTarget: weightForDisplay(settings.goal_monthly_target_kg, settings.unit_system),
-    goalMonthlyRate: weightForDisplay(settings.goal_monthly_rate_kg, settings.unit_system),
-    goalTargetWeight: weightForDisplay(settings.goal_weight_target_kg, settings.unit_system),
-    goalTargetDate: settings.goal_weight_target_date,
     height: heightForDisplay(settings.height_cm, settings.unit_system),
     weeklyRunGoal: distanceForDisplay(settings.weekly_run_goal_m, settings.unit_system),
     maxHr: settings.max_hr,
-    goalWeightTouched: false,
-    goalRateTouched: false,
-    goalMonthlyTargetTouched: false,
-    goalMonthlyRateTouched: false,
-    goalTargetWeightTouched: false,
-    goalTargetDateTouched: false,
     heightTouched: false,
     weeklyRunGoalTouched: false,
     maxHrTouched: false,
@@ -117,30 +107,66 @@ export function convertDraftUnits(draft: SettingsDraft, unitSystem: UnitSystem):
     return draft
   }
 
-  const goalWeightKg = weightToKg(draft.goalWeight, draft.unitSystem)
-  const goalRateKgPerWeek = weightToKg(draft.goalRatePerWeek, draft.unitSystem)
-  const goalMonthlyTargetKg = weightToKg(draft.goalMonthlyTarget, draft.unitSystem)
-  const goalMonthlyRateKg = weightToKg(draft.goalMonthlyRate, draft.unitSystem)
-  const goalTargetWeightKg = weightToKg(draft.goalTargetWeight, draft.unitSystem)
   const heightCm = heightToCm(draft.height, draft.unitSystem)
   const weeklyRunGoalM = distanceToMeters(draft.weeklyRunGoal, draft.unitSystem)
 
   return {
     ...draft,
     unitSystem,
-    goalWeight: weightForDisplay(goalWeightKg, unitSystem),
-    goalRatePerWeek: weightForDisplay(goalRateKgPerWeek, unitSystem),
-    goalMonthlyTarget: weightForDisplay(goalMonthlyTargetKg, unitSystem),
-    goalMonthlyRate: weightForDisplay(goalMonthlyRateKg, unitSystem),
-    goalTargetWeight: weightForDisplay(goalTargetWeightKg, unitSystem),
     height: heightForDisplay(heightCm, unitSystem),
     weeklyRunGoal: distanceForDisplay(weeklyRunGoalM, unitSystem),
   }
 }
 
-function buildMonthlyPatch(
+export function goalDraftFromSettings(settings: Settings): GoalDraft {
+  const unitSystem = settings.unit_system
+
+  return {
+    goalWeight: weightForDisplay(settings.goal_weight_kg, unitSystem),
+    goalRatePerWeek: weightForDisplay(settings.goal_rate_kg_per_week, unitSystem),
+    goalMonthlyMode: settings.goal_monthly_mode,
+    goalMonthlyTarget: weightForDisplay(settings.goal_monthly_target_kg, unitSystem),
+    goalMonthlyRate: weightForDisplay(settings.goal_monthly_rate_kg, unitSystem),
+    goalTargetWeight: weightForDisplay(settings.goal_weight_target_kg, unitSystem),
+    goalTargetDate: settings.goal_weight_target_date,
+    goalWeightTouched: false,
+    goalRateTouched: false,
+    goalMonthlyTargetTouched: false,
+    goalMonthlyRateTouched: false,
+    goalTargetWeightTouched: false,
+    goalTargetDateTouched: false,
+  }
+}
+
+export function validateGoalDraft(draft: GoalDraft): string | null {
+  if (draft.goalWeight !== null && !(draft.goalWeight > 0)) {
+    return 'Goal weight must be greater than 0.'
+  }
+  if (draft.goalRatePerWeek === 0) {
+    return 'Weekly rate must not be 0.'
+  }
+  if (
+    draft.goalMonthlyMode === 'target' &&
+    draft.goalMonthlyTarget !== null &&
+    !(draft.goalMonthlyTarget > 0)
+  ) {
+    return 'Monthly target weight must be greater than 0.'
+  }
+  if (draft.goalMonthlyMode === 'rate' && draft.goalMonthlyRate === 0) {
+    return 'Monthly rate must not be 0.'
+  }
+  if ((draft.goalTargetWeight !== null) !== (draft.goalTargetDate !== null)) {
+    return 'Enter both a target weight and target date, or clear both.'
+  }
+  if (draft.goalTargetWeight !== null && !(draft.goalTargetWeight > 0)) {
+    return 'Target weight must be greater than 0.'
+  }
+  return null
+}
+
+function buildMonthlyGoalPatch(
   settings: Settings,
-  draft: SettingsDraft,
+  draft: GoalDraft,
   patch: SettingsPatch,
 ): void {
   const desiredMode = draft.goalMonthlyMode
@@ -162,7 +188,7 @@ function buildMonthlyPatch(
   }
 
   if (mode === 'target') {
-    const targetKg = weightToKg(draft.goalMonthlyTarget, draft.unitSystem)
+    const targetKg = weightToKg(draft.goalMonthlyTarget, settings.unit_system)
     if (
       (modeChanged || draft.goalMonthlyTargetTouched) &&
       targetKg !== settings.goal_monthly_target_kg
@@ -170,22 +196,19 @@ function buildMonthlyPatch(
       patch.goal_monthly_target_kg = targetKg
     }
   } else {
-    const rateKg = weightToKg(draft.goalMonthlyRate, draft.unitSystem)
-    if (
-      (modeChanged || draft.goalMonthlyRateTouched) &&
-      rateKg !== settings.goal_monthly_rate_kg
-    ) {
+    const rateKg = weightToKg(draft.goalMonthlyRate, settings.unit_system)
+    if ((modeChanged || draft.goalMonthlyRateTouched) && rateKg !== settings.goal_monthly_rate_kg) {
       patch.goal_monthly_rate_kg = rateKg
     }
   }
 }
 
-function buildDatedTargetPatch(
+function buildDatedTargetGoalPatch(
   settings: Settings,
-  draft: SettingsDraft,
+  draft: GoalDraft,
   patch: SettingsPatch,
 ): void {
-  const targetKg = weightToKg(draft.goalTargetWeight, draft.unitSystem)
+  const targetKg = weightToKg(draft.goalTargetWeight, settings.unit_system)
   const targetDate = draft.goalTargetDate
   const stored =
     settings.goal_weight_target_kg !== null || settings.goal_weight_target_date !== null
@@ -200,14 +223,32 @@ function buildDatedTargetPatch(
 
   const weightChanged =
     draft.goalTargetWeightTouched && targetKg !== settings.goal_weight_target_kg
-  const dateChanged =
-    draft.goalTargetDateTouched && targetDate !== settings.goal_weight_target_date
+  const dateChanged = draft.goalTargetDateTouched && targetDate !== settings.goal_weight_target_date
   if (weightChanged) {
     patch.goal_weight_target_kg = targetKg
   }
   if (dateChanged) {
     patch.goal_weight_target_date = targetDate
   }
+}
+
+export function buildGoalPatch(settings: Settings, draft: GoalDraft): SettingsPatch {
+  const patch: SettingsPatch = {}
+
+  const goalWeightKg = weightToKg(draft.goalWeight, settings.unit_system)
+  if (draft.goalWeightTouched && goalWeightKg !== settings.goal_weight_kg) {
+    patch.goal_weight_kg = goalWeightKg
+  }
+
+  const goalRateKgPerWeek = weightToKg(draft.goalRatePerWeek, settings.unit_system)
+  if (draft.goalRateTouched && goalRateKgPerWeek !== settings.goal_rate_kg_per_week) {
+    patch.goal_rate_kg_per_week = goalRateKgPerWeek
+  }
+
+  buildMonthlyGoalPatch(settings, draft, patch)
+  buildDatedTargetGoalPatch(settings, draft, patch)
+
+  return patch
 }
 
 export function buildSettingsPatch(settings: Settings, draft: SettingsDraft): SettingsPatch {
@@ -221,19 +262,6 @@ export function buildSettingsPatch(settings: Settings, draft: SettingsDraft): Se
   if (timezone !== settings.timezone) {
     patch.timezone = timezone
   }
-
-  const goalWeightKg = weightToKg(draft.goalWeight, draft.unitSystem)
-  if (draft.goalWeightTouched && goalWeightKg !== settings.goal_weight_kg) {
-    patch.goal_weight_kg = goalWeightKg
-  }
-
-  const goalRateKgPerWeek = weightToKg(draft.goalRatePerWeek, draft.unitSystem)
-  if (draft.goalRateTouched && goalRateKgPerWeek !== settings.goal_rate_kg_per_week) {
-    patch.goal_rate_kg_per_week = goalRateKgPerWeek
-  }
-
-  buildMonthlyPatch(settings, draft, patch)
-  buildDatedTargetPatch(settings, draft, patch)
 
   const heightCm = heightToCm(draft.height, draft.unitSystem)
   if (draft.heightTouched && heightCm !== settings.height_cm) {
