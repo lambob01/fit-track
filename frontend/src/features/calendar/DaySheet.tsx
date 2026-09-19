@@ -14,6 +14,7 @@ export interface DaySheetProps {
   templatesError: boolean
   onClose: () => void
   onCreatePlan: () => void
+  onCreateTemplate: () => void
 }
 
 function errorDetail(error: unknown): string {
@@ -34,6 +35,7 @@ export function DaySheet({
   templatesError,
   onClose,
   onCreatePlan,
+  onCreateTemplate,
 }: DaySheetProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -145,8 +147,8 @@ export function DaySheet({
               {templates.length === 0 && !currentTemplateMissing && (
                 <div className="space-y-2 rounded-lg border border-line bg-surface p-3">
                   <p className="text-sm text-content-muted">
-                    You have no workout templates yet. Create a template first, then come back to
-                    plan your week.
+                    You have no workout templates yet. Create one now or manage them in the
+                    templates library.
                   </p>
                   <button
                     type="button"
@@ -162,6 +164,15 @@ export function DaySheet({
               )}
             </>
           )}
+
+          <button
+            type="button"
+            disabled={assignMutation.isPending}
+            onClick={onCreateTemplate}
+            className="min-h-11 w-full rounded-lg border border-dashed border-line px-3 text-sm font-semibold text-content-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            New template
+          </button>
 
           {assignMutation.isError && (
             <p role="alert" className="pt-1 text-sm font-medium text-content">

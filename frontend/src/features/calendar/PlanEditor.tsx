@@ -16,6 +16,7 @@ export interface PlanEditorProps {
   templatesDetail: string
   onRetryTemplates: () => void
   onClose: () => void
+  onCreateTemplate: () => void
 }
 
 const DAYS = [
@@ -56,6 +57,7 @@ export function PlanEditor({
   templatesDetail,
   onRetryTemplates,
   onClose,
+  onCreateTemplate,
 }: PlanEditorProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -147,9 +149,16 @@ export function PlanEditor({
         {!templatesError && templates.length === 0 && (
           <div className="space-y-2 rounded-lg border border-line bg-surface p-3">
             <p className="text-sm text-content-muted">
-              You have no workout templates yet. Create a template first, then come back to plan
-              your week.
+              You have no workout templates yet. Create one now or manage them in the templates
+              library.
             </p>
+            <button
+              type="button"
+              onClick={onCreateTemplate}
+              className="min-h-11 w-full rounded-lg bg-accent-strong px-3 text-sm font-semibold text-surface transition-opacity hover:opacity-90"
+            >
+              Create a template
+            </button>
             <button
               type="button"
               onClick={() => {

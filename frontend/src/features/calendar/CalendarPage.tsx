@@ -19,12 +19,15 @@ import { CalendarList } from './CalendarList'
 import { DaySheet } from './DaySheet'
 import { MonthGrid } from './MonthGrid'
 import { PlanEditor } from './PlanEditor'
+import { TemplateQuickCreate } from './TemplateQuickCreate'
 
 const MODE_OPTIONS: { value: CalendarMode; label: string }[] = [
   { value: 'week', label: 'Week' },
   { value: 'month', label: 'Month' },
   { value: 'list', label: 'List' },
 ]
+
+type QuickCreateState = { kind: 'day'; plan: Plan; dayOfWeek: number } | { kind: 'editor' }
 
 function errorDetail(error: unknown): string {
   if (error instanceof ApiError) {
@@ -49,6 +52,7 @@ export function CalendarPage() {
     open: false,
     plan: null,
   })
+  const [quickCreate, setQuickCreate] = useState<QuickCreateState | null>(null)
 
   const today = todayDateKey(timezone)
   const anchorKey = anchor ?? today
@@ -440,18 +444,42 @@ export function CalendarPage() {
           setSelectedDay(null)
           setEditor({ open: true, plan: null })
         }}
+        onCreateTemplate={() => {
+          if (selectedDay === null || activePlan === null) {
+            return
+          }
+          setQuickCreate({
+            kind: 'day',
+            plan: activePlan,
+            dayOfWeek: selectedDay.day_of_week,
+          })
+          setSelectedDay(null)
+        }}
       />
 
       {editor.open && (
         <PlanEditor
           key={editor.plan?.id ?? 'new'}
-          open
+          open={quickCreate === null}
           plan={editor.plan}
           templates={templatesQuery.data ?? []}
           templatesError={templatesQuery.isError}
           templatesDetail={templatesQuery.isError ? errorDetail(templatesQuery.error) : ''}
           onRetryTemplates={() => void templatesQuery.refetch()}
           onClose={() => setEditor({ open: false, plan: null })}
+          onCreateTemplate={() => setQuickCreate({ kind: 'editor' })}
+        />
+      )}
+
+      {quickCreate !== null && (
+        <TemplateQuickCreate
+          open
+          assignment={
+            quickCreate.kind === 'day'
+              ? { plan: quickCreate.plan, dayOfWeek: quickCreate.dayOfWeek }
+              : null
+          }
+          onClose={() => setQuickCreate(null)}
         />
       )}
     </div>
