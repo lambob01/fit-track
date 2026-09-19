@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, select
@@ -20,7 +21,11 @@ from app.models import (
 )
 from app.schemas.template import PlannedOut, StartFromTemplateOut
 from app.schemas.workout import (
+    AvgRpeOut,
     E1rmPrOut,
+    EstimatedWeightOut,
+    ExerciseGoalOut,
+    GoalRatePointOut,
     LastPerformanceOut,
     ProgressOut,
     ProgressSessionOut,
@@ -31,6 +36,7 @@ from app.schemas.workout import (
     SetIn,
     SetOut,
     SetPatch,
+    SetsPerWeekOut,
     WeightPrOut,
     WorkoutExerciseIn,
     WorkoutExerciseOut,
@@ -39,8 +45,20 @@ from app.schemas.workout import (
     WorkoutOut,
     WorkoutPatch,
     WorkoutSummaryOut,
+    stored_utc,
 )
-from app.services.analytics import epley_1rm, session_reps_volume, session_volume_kg
+from app.services.analytics import (
+    DAYS_PER_WEEK,
+    EXPIRED,
+    bucket_start,
+    compare_rate,
+    epley_1rm,
+    linear_trend,
+    required_rate_line_points,
+    required_rate_per_week,
+    session_reps_volume,
+    session_volume_kg,
+)
 
 router = APIRouter(tags=["workouts"], dependencies=[Depends(get_current_user)])
 
@@ -645,15 +663,119 @@ def delete_set(
     return Response(status_code=204)
 
 
+TREND_WINDOW_WEEKS = 8
+
+
+def _metric_sessions(
+    db: Session, user: User, exercise_id: UUID, mode: str
+) -> list[tuple[datetime, float]]:
+    """Best non-warmup metric per session: top-set kg or best reps, ascending."""
+    rows = db.execute(
+        select(SetEntry, Workout.id, Workout.performed_at)
+        .join(WorkoutExercise, SetEntry.workout_exercise_id == WorkoutExercise.id)
+        .join(Workout, WorkoutExercise.workout_id == Workout.id)
+        .where(
+            Workout.user_id == user.id,
+            WorkoutExercise.exercise_id == exercise_id,
+            SetEntry.is_warmup.is_(False),
+        )
+    )
+    best: dict[UUID, tuple[datetime, float]] = {}
+    for entry, workout_id, performed_at in rows:
+        if mode == "weight":
+            if entry.weight_kg is None:
+                continue
+            metric = float(entry.weight_kg)
+        else:
+            metric = float(entry.reps)
+        current = best.get(workout_id)
+        if current is None or metric > current[1]:
+            best[workout_id] = (stored_utc(performed_at), metric)
+    return sorted(best.values(), key=lambda item: item[0])
+
+
+def _trend_crossing_days(trend: dict, last_x: float, target: float) -> float | None:
+    slope = trend["slope_per_day"]
+    if slope == 0:
+        return None
+    crossing_days = (target - trend["intercept"]) / slope
+    if crossing_days <= last_x:
+        return None
+    return crossing_days
+
+
+def _exercise_goal(db: Session, user: User, exercise: Exercise) -> ExerciseGoalOut | None:
+    if exercise.goal_weight_kg is not None:
+        mode = "weight"
+        target_value = float(exercise.goal_weight_kg)
+        goal_reps = exercise.goal_reps
+    elif exercise.goal_reps_bodyweight is not None:
+        mode = "bodyweight"
+        target_value = float(exercise.goal_reps_bodyweight)
+        goal_reps = exercise.goal_reps_bodyweight
+    else:
+        return None
+
+    series = _metric_sessions(db, user, exercise.id, mode)
+    current_value = series[-1][1] if series else None
+    target_date = exercise.goal_target_date
+
+    local_today = datetime.now(ZoneInfo(user.timezone)).date()
+    required_rate = required_rate_per_week(
+        current_value, target_value, target_date, today=local_today
+    )
+    cutoff = datetime.now(UTC) - timedelta(weeks=TREND_WINDOW_WEEKS)
+    recent = [entry for entry in series if entry[0] >= cutoff]
+    trend = linear_trend(recent)
+    slope_per_week = (
+        trend["slope_per_day"] * DAYS_PER_WEEK if trend is not None else None
+    )
+
+    required_rate_line = None
+    if current_value is not None and target_date is not None and required_rate != EXPIRED:
+        start_date = series[-1][0].astimezone(ZoneInfo(user.timezone)).date()
+        points = required_rate_line_points(
+            start_date, current_value, target_value, target_date
+        )
+        if points is not None:
+            required_rate_line = [
+                GoalRatePointOut(
+                    date=point_date,
+                    weight_kg=value if mode == "weight" else None,
+                    reps=None if mode == "weight" else value,
+                )
+                for point_date, value in points
+            ]
+
+    estimate_date = None
+    if trend is not None and recent:
+        last_x = (recent[-1][0] - recent[0][0]).total_seconds() / 86400
+        crossing_days = _trend_crossing_days(trend, last_x, target_value)
+        if crossing_days is not None:
+            crossed_at = recent[0][0] + timedelta(days=crossing_days)
+            estimate_date = crossed_at.astimezone(ZoneInfo(user.timezone)).date()
+
+    return ExerciseGoalOut(
+        mode=mode,
+        weight_kg=exercise.goal_weight_kg,
+        reps=goal_reps,
+        target_date=target_date,
+        required_rate_line=required_rate_line,
+        on_track=compare_rate(slope_per_week, required_rate),
+        estimate_date=estimate_date,
+    )
+
+
 @router.get("/api/exercises/{exercise_id}/progress", response_model=ProgressOut)
 def exercise_progress(
     exercise_id: UUID,
     from_: datetime | None = Query(default=None, alias="from"),
     to: datetime | None = None,
+    reps: int | None = Query(default=None, ge=1, le=12),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ProgressOut:
-    _get_owned_exercise(db, user, exercise_id)
+    exercise = _get_owned_exercise(db, user, exercise_id)
     from_utc = _utc_or_422(from_, "from")
     to_utc = _utc_or_422(to, "to")
     statement = (
@@ -681,6 +803,10 @@ def exercise_progress(
             order.append(workout_id)
         grouped[workout_id][1].append(entry)
 
+    sets_per_week: dict[datetime, int] = defaultdict(int)
+    avg_rpe: list[AvgRpeOut] = []
+    estimated: list[EstimatedWeightOut] | None = [] if reps is not None else None
+
     sessions = []
     for workout_id in order:
         performed_at, entries = grouped[workout_id]
@@ -697,7 +823,31 @@ def exercise_progress(
                 reps_volume=session_reps_volume(entries),
             )
         )
-    return ProgressOut(sessions=sessions)
+        sets_per_week[bucket_start(stored_utc(performed_at), user.timezone, "week")] += len(
+            entries
+        )
+        rpes = [entry.rpe for entry in entries if entry.rpe is not None]
+        if rpes:
+            avg_rpe.append(
+                AvgRpeOut(performed_at=performed_at, avg_rpe=sum(rpes) / len(rpes))
+            )
+        if estimated is not None and estimates:
+            estimated.append(
+                EstimatedWeightOut(
+                    performed_at=performed_at,
+                    weight_kg=max(estimates) / (1 + reps / 30),
+                )
+            )
+    return ProgressOut(
+        sessions=sessions,
+        sets_per_week=[
+            SetsPerWeekOut(week_start=week_start, sets=count)
+            for week_start, count in sorted(sets_per_week.items())
+        ],
+        avg_rpe=avg_rpe,
+        estimated_weight_at_reps=estimated,
+        goal=_exercise_goal(db, user, exercise),
+    )
 
 
 @router.get("/api/exercises/{exercise_id}/prs", response_model=PrsOut)

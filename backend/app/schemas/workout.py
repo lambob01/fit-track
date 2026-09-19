@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -212,8 +213,58 @@ class ProgressSessionOut(BaseModel):
         return stored_utc(value)
 
 
+class SetsPerWeekOut(BaseModel):
+    week_start: datetime
+    sets: int
+
+    @field_validator("week_start")
+    @classmethod
+    def utc_week_start(cls, value: datetime) -> datetime:
+        return stored_utc(value)
+
+
+class AvgRpeOut(BaseModel):
+    performed_at: datetime
+    avg_rpe: float
+
+    @field_validator("performed_at")
+    @classmethod
+    def utc_performed_at(cls, value: datetime) -> datetime:
+        return stored_utc(value)
+
+
+class EstimatedWeightOut(BaseModel):
+    performed_at: datetime
+    weight_kg: float
+
+    @field_validator("performed_at")
+    @classmethod
+    def utc_performed_at(cls, value: datetime) -> datetime:
+        return stored_utc(value)
+
+
+class GoalRatePointOut(BaseModel):
+    date: date
+    weight_kg: float | None = None
+    reps: float | None = None
+
+
+class ExerciseGoalOut(BaseModel):
+    mode: Literal["weight", "bodyweight"]
+    weight_kg: float | None
+    reps: int | None
+    target_date: date | None
+    required_rate_line: list[GoalRatePointOut] | None
+    on_track: Literal["on_pace", "ahead", "behind", "expired"] | None
+    estimate_date: date | None
+
+
 class ProgressOut(BaseModel):
     sessions: list[ProgressSessionOut]
+    sets_per_week: list[SetsPerWeekOut]
+    avg_rpe: list[AvgRpeOut]
+    estimated_weight_at_reps: list[EstimatedWeightOut] | None
+    goal: ExerciseGoalOut | None
 
 
 class WeightPrOut(BaseModel):

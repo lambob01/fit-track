@@ -22,6 +22,13 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+GOAL_FIELDS = (
+    "goal_weight_kg",
+    "goal_reps",
+    "goal_target_date",
+    "goal_reps_bodyweight",
+)
+
 
 def _find_by_name(db: Session, user: User, name_lower: str) -> Exercise | None:
     return db.scalar(
@@ -147,9 +154,26 @@ def patch_exercise(
     user: User = Depends(get_current_user),
 ) -> Exercise:
     exercise = _get_owned(db, user, exercise_id)
+    effective_goal = {
+        field: (
+            getattr(payload, field)
+            if field in payload.model_fields_set
+            else getattr(exercise, field)
+        )
+        for field in GOAL_FIELDS
+    }
+    if (
+        effective_goal["goal_target_date"] is not None
+        and effective_goal["goal_weight_kg"] is None
+        and effective_goal["goal_reps_bodyweight"] is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="goal_target_date requires goal_weight_kg or goal_reps_bodyweight",
+        )
     for field in payload.model_fields_set:
         value = getattr(payload, field)
-        if value is None:
+        if value is None and field not in GOAL_FIELDS:
             raise HTTPException(status_code=422, detail=f"{field} cannot be null")
         if field == "name":
             name_lower = value.lower()

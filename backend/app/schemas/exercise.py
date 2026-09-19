@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
@@ -37,6 +38,10 @@ class ExercisePatch(BaseModel):
     equipment: str | None = None
     is_compound: bool | None = None
     is_archived: bool | None = None
+    goal_weight_kg: float | None = Field(default=None, gt=0)
+    goal_reps: int | None = Field(default=None, ge=1)
+    goal_target_date: date | None = None
+    goal_reps_bodyweight: int | None = Field(default=None, ge=1)
 
     @field_validator("name")
     @classmethod
@@ -65,6 +70,10 @@ class ExerciseOut(BaseModel):
     equipment: str
     is_compound: bool
     is_archived: bool
+    goal_weight_kg: float | None = None
+    goal_reps: int | None = None
+    goal_target_date: date | None = None
+    goal_reps_bodyweight: int | None = None
 
 
 class ExerciseResolveOut(BaseModel):
