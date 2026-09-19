@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { SetPatch, UnitSystem, WorkoutSet } from '../../api/types'
 import { NumberField } from '../../components/NumberField'
-import { formatWeight } from '../../lib/units'
+import { formatWeight, weightStep } from '../../lib/units'
 import { displayToKg, displayWeight } from './liftingUnits'
 
 function normalizeRpe(value: number | null): number | null {
@@ -10,10 +10,6 @@ function normalizeRpe(value: number | null): number | null {
   }
   const clamped = Math.min(10, Math.max(0, value))
   return Math.round(clamped * 2) / 2
-}
-
-function round3(value: number): number {
-  return Number(value.toFixed(3))
 }
 
 export interface StepperFieldProps {
@@ -35,51 +31,19 @@ export function StepperField({
   placeholder,
   disabled,
 }: StepperFieldProps) {
-  function decrement() {
-    if (value === null) {
-      return
-    }
-    const next = round3(value - step)
-    onChange(next > 0 ? next : null)
-  }
-
-  function increment() {
-    onChange(value === null ? step : round3(value + step))
-  }
-
   return (
     <div>
       <span className="mb-1 block text-xs font-medium text-content-muted">{label}</span>
-      <div className="flex items-stretch gap-1">
-        <button
-          type="button"
-          aria-label={`Decrease ${label}`}
-          onClick={decrement}
-          disabled={disabled || value === null}
-          className="min-h-12 min-w-12 shrink-0 rounded-lg border border-line bg-surface text-xl font-semibold text-content transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
-        >
-          −
-        </button>
-        <div className="min-w-0 flex-1">
-          <NumberField
-            value={value}
-            onChange={onChange}
-            inputMode={inputMode}
-            placeholder={placeholder}
-            disabled={disabled}
-            className="h-12 text-center"
-          />
-        </div>
-        <button
-          type="button"
-          aria-label={`Increase ${label}`}
-          onClick={increment}
-          disabled={disabled}
-          className="min-h-12 min-w-12 shrink-0 rounded-lg border border-line bg-surface text-xl font-semibold text-content transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
-        >
-          +
-        </button>
-      </div>
+      <NumberField
+        value={value}
+        onChange={onChange}
+        step={step}
+        stepperLabel={label}
+        inputMode={inputMode}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="h-12 text-center"
+      />
     </div>
   )
 }
@@ -131,7 +95,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
         <button
           type="button"
           onClick={openEditor}
-          className="flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
           <span className="truncate font-medium tabular-nums">
             {set.weight_kg === null ? 'Bodyweight' : formatWeight(set.weight_kg, unitSystem)} ×{' '}
@@ -155,7 +119,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="min-h-9 rounded-lg px-2 text-xs font-medium text-content-muted transition-colors hover:text-content"
+          className="min-h-11 rounded-lg px-2 text-xs font-medium text-content-muted transition-colors hover:text-content"
         >
           Cancel
         </button>
@@ -166,7 +130,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
           label={`Weight (${unitLabel})`}
           value={weight}
           onChange={setWeight}
-          step={unitSystem === 'imperial' ? 5 : 2.5}
+          step={weightStep(unitSystem)}
           inputMode="decimal"
           placeholder="BW"
           disabled={isBusy}
@@ -222,7 +186,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
         type="button"
         onClick={onDelete}
         disabled={isBusy}
-        className="mt-2 min-h-9 text-xs font-medium text-red-400 transition-colors hover:text-red-300 disabled:opacity-50 light:text-red-600 light:hover:text-red-500"
+        className="mt-2 min-h-11 text-xs font-medium text-red-400 transition-colors hover:text-red-300 disabled:opacity-50 light:text-red-600 light:hover:text-red-500"
       >
         Delete set
       </button>
@@ -278,7 +242,7 @@ export function SetInputRow({
           label={`Weight (${unitLabel})`}
           value={weight}
           onChange={setWeight}
-          step={unitSystem === 'imperial' ? 5 : 2.5}
+          step={weightStep(unitSystem)}
           inputMode="decimal"
           placeholder="BW"
           disabled={isAdding}

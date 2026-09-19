@@ -142,7 +142,7 @@ export function RunningPage() {
           <button
             type="button"
             onClick={openAddForm}
-            className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Add activity
           </button>
@@ -180,7 +180,7 @@ export function RunningPage() {
             <button
               type="button"
               onClick={() => void summaryQuery.refetch()}
-              className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>
@@ -224,7 +224,7 @@ export function RunningPage() {
             <button
               type="button"
               onClick={() => void weekQuery.refetch()}
-              className="mt-2 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-2 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>
@@ -267,7 +267,7 @@ export function RunningPage() {
             <button
               type="button"
               onClick={() => void activitiesQuery.refetch()}
-              className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>
@@ -313,14 +313,14 @@ export function RunningPage() {
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(activity.id)}
-                      className="min-h-9 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
+                      className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
                     >
                       {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPendingDeleteId(null)}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
                     >
                       Cancel
                     </button>
@@ -330,7 +330,7 @@ export function RunningPage() {
                     <button
                       type="button"
                       onClick={() => openEditForm(activity)}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
                     >
                       Edit
                     </button>
@@ -340,7 +340,7 @@ export function RunningPage() {
                         deleteMutation.reset()
                         setPendingDeleteId(activity.id)
                       }}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
                     >
                       Delete
                     </button>

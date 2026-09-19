@@ -74,7 +74,7 @@ export function DateRangePicker({
             aria-pressed={activePreset === preset}
             onClick={() => handlePresetClick(preset)}
             className={[
-              'min-h-10 rounded-full border px-3 text-xs font-medium transition-colors',
+              'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
               activePreset === preset
                 ? 'border-accent bg-accent text-surface'
                 : 'border-line bg-surface text-content-muted hover:border-content-muted hover:text-content',
@@ -94,7 +94,7 @@ export function DateRangePicker({
               value={localDateKey(value.from, timezone)}
               max={localDateKey(value.to, timezone)}
               onChange={(event) => handleFromChange(event.target.value)}
-              className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-content focus:border-accent focus:outline-none"
+              className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-content focus:border-accent focus:outline-none"
             />
           </label>
           <label className="flex-1 space-y-1">
@@ -104,7 +104,7 @@ export function DateRangePicker({
               value={localDateKey(value.to, timezone)}
               min={localDateKey(value.from, timezone)}
               onChange={(event) => handleToChange(event.target.value)}
-              className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-content focus:border-accent focus:outline-none"
+              className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-content focus:border-accent focus:outline-none"
             />
           </label>
         </div>

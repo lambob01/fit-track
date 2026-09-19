@@ -46,7 +46,7 @@ function MetricToggle({
           aria-pressed={metric === key}
           onClick={() => onChange(key)}
           className={[
-            'min-h-10 rounded-full border px-3 text-xs font-medium transition-colors',
+            'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
             metric === key
               ? 'border-accent bg-accent text-surface'
               : 'border-line bg-surface text-content-muted hover:border-content-muted hover:text-content',
@@ -261,7 +261,7 @@ export function ExerciseProgressPage() {
             hasWeighted ? (
               <MetricToggle metric={metric} onChange={setMetric} />
             ) : sessions.length > 0 ? (
-              <span className="min-h-10 rounded-full border border-accent bg-accent px-3 text-xs font-medium leading-10 text-surface">
+              <span className="min-h-11 rounded-full border border-accent bg-accent px-3 text-xs font-medium leading-11 text-surface">
                 Reps
               </span>
             ) : undefined

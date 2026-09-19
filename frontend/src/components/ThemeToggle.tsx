@@ -30,7 +30,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(nextTheme)}
       aria-label={`Switch to ${nextTheme} mode`}
-      className="rounded-full p-2 text-content-muted transition-colors hover:bg-line hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-content-muted transition-colors hover:bg-line hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
     </button>

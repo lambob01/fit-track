@@ -174,7 +174,7 @@ function TemplateEditorForm({
             type="button"
             disabled={isArchiving}
             onClick={onToggleArchive}
-            className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
           >
             {archived ? 'Restore' : 'Archive'}
           </button>
@@ -249,7 +249,7 @@ function TemplateEditorForm({
                       aria-label="Move up"
                       disabled={index === 0}
                       onClick={() => moveRow(index, -1)}
-                      className="min-h-9 min-w-9 rounded-lg border border-line text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
+                      className="min-h-11 min-w-11 rounded-lg border border-line text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
                     >
                       ↑
                     </button>
@@ -258,7 +258,7 @@ function TemplateEditorForm({
                       aria-label="Move down"
                       disabled={index === rows.length - 1}
                       onClick={() => moveRow(index, 1)}
-                      className="min-h-9 min-w-9 rounded-lg border border-line text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
+                      className="min-h-11 min-w-11 rounded-lg border border-line text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
                     >
                       ↓
                     </button>
@@ -266,7 +266,7 @@ function TemplateEditorForm({
                       type="button"
                       aria-label="Remove exercise"
                       onClick={() => removeRow(row.key)}
-                      className="min-h-9 min-w-9 rounded-lg border border-line text-sm font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                      className="min-h-11 min-w-11 rounded-lg border border-line text-sm font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
                     >
                       ×
                     </button>
@@ -360,14 +360,14 @@ function TemplateEditorForm({
                   type="button"
                   onClick={onDelete}
                   disabled={isDeleting}
-                  className="min-h-10 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
+                  className="min-h-11 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
                 >
                   {isDeleting ? 'Deleting…' : 'Delete template'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+                  className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
                 >
                   Cancel
                 </button>
@@ -377,7 +377,7 @@ function TemplateEditorForm({
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="min-h-10 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+              className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
             >
               Delete template
             </button>
@@ -469,7 +469,7 @@ export function TemplateEditorPage() {
         <p className="mt-1 text-content-muted">{errorDetail(templateQuery.error)}</p>
         <Link
           to="/lifting/templates"
-          className="mt-3 inline-block min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+          className="mt-3 inline-block min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Back to templates
         </Link>

@@ -103,7 +103,7 @@ function BucketToggle({
           title={label}
           onClick={() => onChange(key)}
           className={[
-            'min-h-10 rounded-full border px-3 text-xs font-medium transition-colors',
+            'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
             bucket === key
               ? 'border-accent bg-accent text-surface'
               : 'border-line bg-surface text-content-muted hover:border-content-muted hover:text-content',

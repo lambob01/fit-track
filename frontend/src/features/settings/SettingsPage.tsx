@@ -74,7 +74,7 @@ function TabButton({
       aria-controls={panelId}
       onClick={onSelect}
       className={[
-        'min-h-10 flex-1 rounded-lg px-3 text-sm font-medium transition-colors',
+        'min-h-11 flex-1 rounded-lg px-3 text-sm font-medium transition-colors',
         active ? 'bg-accent-strong text-surface' : 'text-content-muted hover:text-content',
       ].join(' ')}
     >
@@ -303,7 +303,7 @@ export function SettingsPage() {
             <button
               type="button"
               onClick={handleRetry}
-              className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>

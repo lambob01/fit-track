@@ -127,7 +127,7 @@ export function WeightPage() {
           <button
             type="button"
             onClick={openAddForm}
-            className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Add entry
           </button>
@@ -157,7 +157,7 @@ export function WeightPage() {
           <button
             type="button"
             onClick={() => void seriesQuery.refetch()}
-            className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Retry
           </button>
@@ -185,7 +185,7 @@ export function WeightPage() {
             <button
               type="button"
               onClick={() => void entriesQuery.refetch()}
-              className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>
@@ -222,14 +222,14 @@ export function WeightPage() {
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(entry.id)}
-                      className="min-h-9 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
+                      className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
                     >
                       {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPendingDeleteId(null)}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
                     >
                       Cancel
                     </button>
@@ -239,7 +239,7 @@ export function WeightPage() {
                     <button
                       type="button"
                       onClick={() => openEditForm(entry)}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
                     >
                       Edit
                     </button>
@@ -249,7 +249,7 @@ export function WeightPage() {
                         deleteMutation.reset()
                         setPendingDeleteId(entry.id)
                       }}
-                      className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
                     >
                       Delete
                     </button>

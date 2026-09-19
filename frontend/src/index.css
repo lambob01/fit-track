@@ -34,4 +34,10 @@
   body {
     @apply bg-surface text-content antialiased;
   }
+
+  input,
+  select,
+  textarea {
+    scroll-margin-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
 }

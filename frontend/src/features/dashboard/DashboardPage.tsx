@@ -43,7 +43,7 @@ export function DashboardPage() {
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Retry
           </button>

@@ -107,7 +107,7 @@ function ExerciseForm({ exercise, isSaving, error, onSubmit, onCancel }: Exercis
           />
         </label>
 
-        <label className="flex min-h-10 items-center gap-2 text-sm">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={isCompound}
@@ -244,7 +244,7 @@ export function ExerciseLibraryPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             New exercise
           </button>
@@ -289,7 +289,7 @@ export function ExerciseLibraryPage() {
           <button
             type="button"
             onClick={() => void exercisesQuery.refetch()}
-            className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Retry
           </button>
@@ -334,7 +334,7 @@ export function ExerciseLibraryPage() {
                 <button
                   type="button"
                   onClick={() => openEdit(exercise)}
-                  className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                  className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
                 >
                   Edit
                 </button>
@@ -350,7 +350,7 @@ export function ExerciseLibraryPage() {
                       isArchived: !exercise.is_archived,
                     })
                   }
-                  className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                  className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
                 >
                   {exercise.is_archived ? 'Restore' : 'Archive'}
                 </button>

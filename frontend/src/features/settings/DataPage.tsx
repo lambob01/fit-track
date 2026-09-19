@@ -188,7 +188,7 @@ export function DataPage() {
                     type="button"
                     onClick={() => exportCsvMutation.mutate(option)}
                     disabled={exportCsvMutation.isPending}
-                    className="min-h-10 w-full rounded-lg border border-line px-2 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                    className="min-h-11 w-full rounded-lg border border-line px-2 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
                   >
                     {isPending ? 'Preparing…' : option.label}
                   </button>
@@ -221,7 +221,7 @@ export function DataPage() {
             accept=".json,application/json"
             onChange={handleFileChange}
             disabled={importMutation.isPending}
-            className="block w-full text-sm text-content-muted file:mr-3 file:min-h-10 file:rounded-lg file:border file:border-line file:bg-surface file:px-3 file:text-sm file:font-medium file:text-content hover:file:border-accent hover:file:text-accent disabled:opacity-50"
+            className="block w-full text-sm text-content-muted file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-line file:bg-surface file:px-3 file:text-sm file:font-medium file:text-content hover:file:border-accent hover:file:text-accent disabled:opacity-50"
           />
         </label>
 

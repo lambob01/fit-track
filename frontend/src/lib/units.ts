@@ -33,6 +33,13 @@ export function cmToIn(cm: number): number {
   return cm / CM_PER_IN
 }
 
+export const METRIC_WEIGHT_STEP_KG = 2.5
+export const IMPERIAL_WEIGHT_STEP_LB = 5
+
+export function weightStep(system: UnitSystem): number {
+  return system === 'imperial' ? IMPERIAL_WEIGHT_STEP_LB : METRIC_WEIGHT_STEP_KG
+}
+
 export function inToCm(inches: number): number {
   return inches * CM_PER_IN
 }

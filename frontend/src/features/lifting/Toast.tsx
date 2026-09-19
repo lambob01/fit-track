@@ -23,7 +23,7 @@ export function Toast({ message, onDismiss, durationMs = 3200 }: ToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-xl border border-accent/50 bg-surface-raised px-4 py-3 text-sm font-medium shadow-lg"
+      className="fixed inset-x-4 bottom-[calc(6rem_+_env(safe-area-inset-bottom))] z-50 mx-auto max-w-md rounded-xl border border-accent/50 bg-surface-raised px-4 py-3 text-sm font-medium shadow-lg"
     >
       {message}
     </div>

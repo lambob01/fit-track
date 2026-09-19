@@ -4,7 +4,7 @@ import type { WeightEntry, WeightEntryInput } from '../../api/types'
 import { NumberField } from '../../components/NumberField'
 import { useSettings } from '../../context/SettingsContext'
 import { fromLocalDateTimeInput, toLocalDateTimeInput } from '../../lib/datetime'
-import { kgToLb, lbToKg } from '../../lib/units'
+import { kgToLb, lbToKg, weightStep } from '../../lib/units'
 
 export interface WeightFormProps {
   entry: WeightEntry | null
@@ -83,6 +83,8 @@ export function WeightForm({ entry, isSaving, error, onSubmit, onCancel }: Weigh
           <NumberField
             value={weight}
             onChange={setWeight}
+            step={weightStep(unitSystem)}
+            stepperLabel={`Weight (${unitLabel})`}
             inputMode="decimal"
             placeholder={unitSystem === 'imperial' ? 'e.g. 175' : 'e.g. 80'}
           />

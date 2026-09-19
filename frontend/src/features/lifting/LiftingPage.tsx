@@ -77,13 +77,13 @@ export function LiftingPage() {
         <div className="flex items-center gap-1">
           <Link
             to="/lifting/exercises"
-            className="min-h-10 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Exercises
           </Link>
           <Link
             to="/lifting/templates"
-            className="min-h-10 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Templates
           </Link>
@@ -145,7 +145,7 @@ export function LiftingPage() {
                     startTemplateMutation.variables === template.id
                   }
                   onClick={() => startTemplateMutation.mutate(template.id)}
-                  className="min-h-10 shrink-0 rounded-lg border border-accent/50 px-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+                  className="min-h-11 shrink-0 rounded-lg border border-accent/50 px-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
                 >
                   {startTemplateMutation.isPending &&
                   startTemplateMutation.variables === template.id
@@ -169,7 +169,7 @@ export function LiftingPage() {
             <button
               type="button"
               onClick={() => void workoutsQuery.refetch()}
-              className="mt-2 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="mt-2 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Retry
             </button>

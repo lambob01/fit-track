@@ -24,7 +24,7 @@ export function QueryErrorNotice({ message, detail, onRetry, className }: QueryE
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-9 shrink-0 rounded-lg border border-line px-3 font-medium transition-colors hover:border-accent hover:text-accent"
+          className="min-h-11 shrink-0 rounded-lg border border-line px-3 font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Retry
         </button>

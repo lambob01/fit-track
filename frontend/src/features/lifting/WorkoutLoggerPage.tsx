@@ -181,14 +181,14 @@ function ExerciseGroup({
               type="button"
               onClick={onRemove}
               disabled={isRemoving}
-              className="min-h-9 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
+              className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
             >
               {isRemoving ? 'Removing…' : 'Confirm'}
             </button>
             <button
               type="button"
               onClick={() => setConfirmRemove(false)}
-              className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+              className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
             >
               Cancel
             </button>
@@ -197,7 +197,7 @@ function ExerciseGroup({
           <button
             type="button"
             onClick={() => setConfirmRemove(true)}
-            className="min-h-9 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+            className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
           >
             Remove
           </button>
@@ -511,13 +511,13 @@ export function WorkoutLoggerPage() {
           <button
             type="button"
             onClick={() => void workoutQuery.refetch()}
-            className="min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Retry
           </button>
           <Link
             to="/lifting"
-            className="min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Back to lifting
           </Link>
@@ -546,7 +546,7 @@ export function WorkoutLoggerPage() {
       <div className="flex items-center justify-between gap-3">
         <Link
           to="/lifting"
-          className="min-h-9 rounded-lg text-sm font-medium text-content-muted transition-colors hover:text-content"
+          className="min-h-11 rounded-lg text-sm font-medium text-content-muted transition-colors hover:text-content"
         >
           ← Lifting
         </Link>
@@ -668,7 +668,7 @@ export function WorkoutLoggerPage() {
               type="button"
               onClick={saveNotes}
               disabled={patchWorkoutMutation.isPending}
-              className="min-h-9 rounded-lg bg-accent-strong px-3 text-xs font-semibold text-surface transition-colors hover:bg-accent disabled:opacity-50"
+              className="min-h-11 rounded-lg bg-accent-strong px-3 text-xs font-semibold text-surface transition-colors hover:bg-accent disabled:opacity-50"
             >
               {patchWorkoutMutation.isPending ? 'Saving…' : 'Save notes'}
             </button>
@@ -685,14 +685,14 @@ export function WorkoutLoggerPage() {
                 type="button"
                 onClick={() => deleteWorkoutMutation.mutate()}
                 disabled={deleteWorkoutMutation.isPending}
-                className="min-h-10 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
+                className="min-h-11 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
               >
                 {deleteWorkoutMutation.isPending ? 'Deleting…' : 'Delete workout'}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDeleteWorkout(false)}
-                className="min-h-10 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+                className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
               >
                 Cancel
               </button>
@@ -707,7 +707,7 @@ export function WorkoutLoggerPage() {
           <button
             type="button"
             onClick={() => setConfirmDeleteWorkout(true)}
-            className="min-h-10 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+            className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
           >
             Delete workout
           </button>

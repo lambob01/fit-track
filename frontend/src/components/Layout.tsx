@@ -1,5 +1,6 @@
 import type { ComponentType, SVGProps } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { InstallPrompt } from './InstallPrompt'
 import { ThemeToggle } from './ThemeToggle'
 import { DumbbellIcon, HomeIcon, RunIcon, ScaleIcon, SettingsIcon } from './icons'
 
@@ -28,7 +29,8 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-28">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-[calc(7rem_+_env(safe-area-inset-bottom))]">
+        <InstallPrompt />
         <Outlet />
       </main>
 

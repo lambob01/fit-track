@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEvent, FocusEvent, InputHTMLAttributes } from 'react'
 import { parseDecimalInput } from '../lib/parseNumber'
+import { nextStepperValue } from '../lib/stepper'
 
 export interface NumberFieldProps
   extends Omit<
@@ -11,6 +12,8 @@ export interface NumberFieldProps
   onChange: (value: number | null) => void
   inputMode?: 'decimal' | 'numeric'
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void
+  step?: number
+  stepperLabel?: string
 }
 
 interface EditingState {
@@ -36,12 +39,18 @@ function normalizeText(raw: string): string {
   return normalized.startsWith('.') ? `0${normalized}` : normalized
 }
 
+const STEP_BUTTON_CLASS =
+  'min-h-11 min-w-11 shrink-0 rounded-lg border border-line bg-surface text-xl font-semibold text-content transition-colors hover:border-accent hover:text-accent disabled:opacity-40'
+
 export function NumberField({
   value,
   onChange,
   inputMode = 'decimal',
   onBlur,
   className,
+  step,
+  stepperLabel,
+  disabled,
   ...rest
 }: NumberFieldProps) {
   const [editing, setEditing] = useState<EditingState>(() => ({
@@ -66,7 +75,7 @@ export function NumberField({
     onBlur?.(event)
   }
 
-  return (
+  const control = (
     <input
       {...rest}
       type="text"
@@ -74,6 +83,7 @@ export function NumberField({
       value={editing.text}
       onChange={handleChange}
       onBlur={handleBlur}
+      disabled={disabled}
       className={[
         'w-full rounded-lg border border-line bg-surface px-3 py-3 text-base text-content placeholder:text-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-50',
         className,
@@ -81,5 +91,33 @@ export function NumberField({
         .filter(Boolean)
         .join(' ')}
     />
+  )
+
+  if (step === undefined) {
+    return control
+  }
+
+  return (
+    <div className="flex items-stretch gap-1">
+      <button
+        type="button"
+        aria-label={`Decrease ${stepperLabel ?? 'value'}`}
+        onClick={() => onChange(nextStepperValue(value, -step))}
+        disabled={disabled === true || value === null}
+        className={STEP_BUTTON_CLASS}
+      >
+        −
+      </button>
+      <div className="min-w-0 flex-1">{control}</div>
+      <button
+        type="button"
+        aria-label={`Increase ${stepperLabel ?? 'value'}`}
+        onClick={() => onChange(nextStepperValue(value, step))}
+        disabled={disabled === true}
+        className={STEP_BUTTON_CLASS}
+      >
+        +
+      </button>
+    </div>
   )
 }

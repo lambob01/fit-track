@@ -67,7 +67,7 @@ export function TemplateListPage() {
         </div>
         <Link
           to="/lifting/templates/new"
-          className="min-h-10 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           New template
         </Link>
@@ -106,7 +106,7 @@ export function TemplateListPage() {
           <button
             type="button"
             onClick={() => void templatesQuery.refetch()}
-            className="mt-3 min-h-9 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            className="mt-3 min-h-11 rounded-lg border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Retry
           </button>
@@ -157,7 +157,7 @@ export function TemplateListPage() {
                   type="button"
                   disabled={startMutation.isPending && startMutation.variables === template.id}
                   onClick={() => startMutation.mutate(template.id)}
-                  className="min-h-9 rounded-lg border border-accent/50 px-3 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+                  className="min-h-11 rounded-lg border border-accent/50 px-3 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
                 >
                   {startMutation.isPending && startMutation.variables === template.id
                     ? 'Starting…'
@@ -174,7 +174,7 @@ export function TemplateListPage() {
                       isArchived: !template.is_archived,
                     })
                   }
-                  className="min-h-9 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                  className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
                 >
                   {template.is_archived ? 'Restore' : 'Archive'}
                 </button>
