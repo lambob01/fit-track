@@ -11,6 +11,13 @@ import {
 import type { WeightBucket, WeightSeries } from '../../api/types'
 import { ChartCard } from '../../components/ChartCard'
 import { useSettings } from '../../context/SettingsContext'
+import {
+  CHART_AXIS_PROPS,
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_PROPS,
+  SEMANTIC_LINES,
+  seriesStyle,
+} from '../../lib/chartTheme'
 import type { DateRange } from '../../lib/dateRange'
 import { BMI_DISCLAIMER, calculateBmi } from '../../lib/bmi'
 import { dateKeyToTimestamp, formatLocal } from '../../lib/datetime'
@@ -343,7 +350,7 @@ export function WeightChart({
         }
       >
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis
             dataKey="ts"
             type="number"
@@ -352,16 +359,14 @@ export function WeightChart({
             tickFormatter={(value: number) =>
               formatLocal(new Date(value).toISOString(), timezone, tickPattern)
             }
-            tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
-            stroke="var(--color-line)"
+            {...CHART_AXIS_PROPS}
             minTickGap={24}
           />
           <YAxis
             yAxisId="weight"
             domain={yDomain}
             tickFormatter={(value: number) => formatWeight(value, unitSystem)}
-            tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
-            stroke="var(--color-line)"
+            {...CHART_AXIS_PROPS}
             width={58}
           />
           {showBmi && (
@@ -370,8 +375,7 @@ export function WeightChart({
               orientation="right"
               domain={bmiDomain}
               tickFormatter={(value: number) => value.toFixed(0)}
-              tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
-              stroke="var(--color-line)"
+              {...CHART_AXIS_PROPS}
               width={32}
             />
           )}
@@ -387,25 +391,17 @@ export function WeightChart({
                 ? formatLocal(new Date(label).toISOString(), timezone, 'MMM d, yyyy')
                 : String(label)
             }
-            contentStyle={{
-              backgroundColor: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-line)',
-              borderRadius: '0.5rem',
-              fontSize: '0.75rem',
-            }}
-            labelStyle={{ color: 'var(--color-content-muted)' }}
-            itemStyle={{ color: 'var(--color-content)' }}
+            {...CHART_TOOLTIP_PROPS}
           />
           {shown.final && finalKg !== null && (
             <ReferenceLine
               yAxisId="weight"
               y={finalKg}
-              stroke="#f59e0b"
-              strokeDasharray="4 4"
+              {...SEMANTIC_LINES.goal}
               label={{
                 value: `Goal ${formatWeight(finalKg, unitSystem)}`,
                 position: 'insideBottomRight',
-                fill: '#f59e0b',
+                fill: 'var(--color-content-muted)',
                 fontSize: 11,
               }}
             />
@@ -414,12 +410,11 @@ export function WeightChart({
             <ReferenceLine
               yAxisId="weight"
               y={monthlyTargetKg}
-              stroke="#a78bfa"
-              strokeDasharray="4 4"
+              {...SEMANTIC_LINES.goalDashed}
               label={{
                 value: `Monthly ${formatWeight(monthlyTargetKg, unitSystem)}`,
                 position: 'insideTopRight',
-                fill: '#a78bfa',
+                fill: 'var(--color-content-muted)',
                 fontSize: 11,
               }}
             />
@@ -429,9 +424,7 @@ export function WeightChart({
             type="monotone"
             dataKey="weight"
             name="Weight"
-            stroke="var(--chart-1)"
-            strokeWidth={2}
-            dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--chart-1)' }}
+            {...seriesStyle(0)}
             connectNulls
           />
           <Line
@@ -439,8 +432,7 @@ export function WeightChart({
             type="monotone"
             dataKey="average"
             name="7-day avg"
-            stroke="#818cf8"
-            strokeWidth={1.5}
+            {...SEMANTIC_LINES.movingAverage}
             dot={false}
             connectNulls
           />
@@ -449,9 +441,7 @@ export function WeightChart({
             type="linear"
             dataKey="trend"
             name="Trend"
-            stroke="#f472b6"
-            strokeWidth={1.5}
-            strokeDasharray="6 4"
+            {...SEMANTIC_LINES.trend}
             dot={false}
             connectNulls
           />
@@ -460,9 +450,7 @@ export function WeightChart({
             type="linear"
             dataKey="weeklyProjection"
             name="Weekly projection"
-            stroke="#2dd4bf"
-            strokeWidth={1.5}
-            strokeDasharray="5 5"
+            {...SEMANTIC_LINES.weeklyProjection}
             dot={false}
             connectNulls
           />
@@ -471,9 +459,7 @@ export function WeightChart({
             type="linear"
             dataKey="monthlyProjection"
             name="Monthly projection"
-            stroke="#c084fc"
-            strokeWidth={1.5}
-            strokeDasharray="5 5"
+            {...SEMANTIC_LINES.monthlyProjection}
             dot={false}
             connectNulls
           />
@@ -482,9 +468,7 @@ export function WeightChart({
             type="linear"
             dataKey="requiredRate"
             name="Required rate"
-            stroke="var(--color-content-muted)"
-            strokeWidth={1.5}
-            strokeDasharray="2 4"
+            {...SEMANTIC_LINES.requiredRate}
             dot={false}
             connectNulls
           />
@@ -494,9 +478,7 @@ export function WeightChart({
               type="linear"
               dataKey="bmi"
               name="BMI"
-              stroke="#38bdf8"
-              strokeWidth={1.5}
-              dot={false}
+              {...seriesStyle(1, 1.5)}
               connectNulls
             />
           )}

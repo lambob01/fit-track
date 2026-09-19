@@ -14,6 +14,13 @@ import { ApiError, exercisesApi } from '../../api/client'
 import type { ExercisePrs, UnitSystem } from '../../api/types'
 import { ChartCard } from '../../components/ChartCard'
 import { useSettings } from '../../context/SettingsContext'
+import {
+  CHART_AXIS_PROPS,
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_PROPS,
+  SEMANTIC_LINES,
+  seriesStyle,
+} from '../../lib/chartTheme'
 import { getPresetRange } from '../../lib/dateRange'
 import type { DateRange } from '../../lib/dateRange'
 import { formatLocal } from '../../lib/datetime'
@@ -449,7 +456,7 @@ export function ExerciseProgressPage() {
           }
         >
           <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid {...CHART_GRID_PROPS} />
             <XAxis
               dataKey="ts"
               type="number"
@@ -458,8 +465,7 @@ export function ExerciseProgressPage() {
               tickFormatter={(value: number) =>
                 formatLocal(new Date(value).toISOString(), timezone, 'MMM d')
               }
-              tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
-              stroke="var(--color-line)"
+              {...CHART_AXIS_PROPS}
               minTickGap={24}
             />
             <YAxis
@@ -467,8 +473,7 @@ export function ExerciseProgressPage() {
               tickFormatter={(value: number) =>
                 formatSeriesAxisValue(value, seriesMeta, unitSystem)
               }
-              tick={{ fill: 'var(--color-content-muted)', fontSize: 10 }}
-              stroke="var(--color-line)"
+              {...CHART_AXIS_PROPS}
               width={58}
               allowDecimals={yAllowDecimals(seriesMeta)}
             />
@@ -482,20 +487,12 @@ export function ExerciseProgressPage() {
                   ? formatLocal(new Date(label).toISOString(), timezone, 'MMM d, yyyy')
                   : String(label)
               }
-              contentStyle={{
-                backgroundColor: 'var(--color-surface-raised)',
-                border: '1px solid var(--color-line)',
-                borderRadius: '0.5rem',
-                fontSize: '0.75rem',
-              }}
-              labelStyle={{ color: 'var(--color-content-muted)' }}
-              itemStyle={{ color: 'var(--color-content)' }}
+              {...CHART_TOOLTIP_PROPS}
             />
             {showGoalOverlay && goal !== null && goalValue !== null && requiredPoints.length === 0 && (
               <ReferenceLine
                 y={goalValue}
-                stroke="var(--color-content-muted)"
-                strokeWidth={1}
+                {...SEMANTIC_LINES.goal}
                 label={{
                   value: `Goal ${goalShortLabel(goal, unitSystem)}`,
                   position: 'insideBottomRight',
@@ -508,18 +505,14 @@ export function ExerciseProgressPage() {
               type="monotone"
               dataKey="value"
               name={seriesMeta.name}
-              stroke="var(--chart-1)"
-              strokeWidth={2}
-              dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--chart-1)' }}
+              {...seriesStyle(0)}
               connectNulls
             />
             <Line
               type="linear"
               dataKey="requiredRate"
               name="Required rate"
-              stroke="var(--color-content-muted)"
-              strokeWidth={1.5}
-              strokeDasharray="2 4"
+              {...SEMANTIC_LINES.requiredRate}
               dot={false}
               connectNulls
             />
