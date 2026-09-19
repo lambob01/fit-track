@@ -205,7 +205,7 @@ function ShoeForm({ shoe, unitSystem, isSaving, error, onSubmit, onCancel }: Sho
       </label>
 
       {displayError !== null && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {displayError}
         </p>
       )}
@@ -645,7 +645,7 @@ export function RunningPage() {
                       deleteShoeMutation.reset()
                       setDeletingShoe(shoe)
                     }}
-                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-content-muted hover:text-content"
                   >
                     Delete
                   </button>
@@ -666,7 +666,7 @@ export function RunningPage() {
               setWeekDeleteStatus(null)
               setWeekDeleteOpen(true)
             }}
-            className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+            className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-content-muted hover:text-content"
           >
             Delete this week
           </button>
@@ -738,7 +738,7 @@ export function RunningPage() {
                       deleteMutation.reset()
                       setDeletingActivity(activity)
                     }}
-                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-content-muted hover:text-content"
                   >
                     Delete
                   </button>

@@ -28,7 +28,7 @@ const CANCEL_CLASS =
   'min-h-11 w-full rounded-lg border border-line px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50 sm:w-auto'
 
 const DESTRUCTIVE_CLASS =
-  'min-h-11 w-full rounded-lg border border-red-500/60 px-4 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600 sm:w-auto'
+  'min-h-11 w-full rounded-lg border border-line-strong px-4 text-sm font-medium text-content transition-colors hover:bg-content/10 disabled:opacity-50 sm:w-auto'
 
 export function DeleteFlow({
   open,
@@ -127,7 +127,7 @@ export function DeleteFlow({
             />
           </label>
           {error !== null && (
-            <p role="alert" className="text-sm text-red-400 light:text-red-600">
+            <p role="alert" className="text-sm font-medium text-content">
               {error}
             </p>
           )}

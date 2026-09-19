@@ -144,7 +144,7 @@ export function SetRow({
       aria-label={`Delete set ${set.set_number}`}
       onClick={onDelete}
       disabled={isBusy || isSaving}
-      className={`${iconButtonClass} hover:text-red-400 light:hover:text-red-600`}
+      className={`${iconButtonClass} hover:text-content`}
     >
       <TrashIcon className="h-4 w-4" />
     </button>

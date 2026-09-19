@@ -95,7 +95,7 @@ export function FirstRunSheet() {
             an empty log book, or load demo data to explore the app.
           </p>
           {seedMutation.isError && (
-            <p role="alert" className="text-sm text-red-400 light:text-red-600">
+            <p role="alert" className="text-sm font-medium text-content">
               {errorDetail(seedMutation.error)}
             </p>
           )}

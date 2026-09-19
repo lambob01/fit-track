@@ -181,7 +181,7 @@ export function DataPage() {
         </div>
 
         {exportError !== null && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {exportError}
           </p>
         )}
@@ -216,7 +216,7 @@ export function DataPage() {
         {importMutation.isSuccess && <ImportSummary counts={importMutation.data} />}
 
         {importError !== null && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {importError}
           </p>
         )}

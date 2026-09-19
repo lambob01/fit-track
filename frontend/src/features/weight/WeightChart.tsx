@@ -429,9 +429,9 @@ export function WeightChart({
             type="monotone"
             dataKey="weight"
             name="Weight"
-            stroke="var(--color-accent)"
+            stroke="var(--chart-1)"
             strokeWidth={2}
-            dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-accent)' }}
+            dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--chart-1)' }}
             connectNulls
           />
           <Line

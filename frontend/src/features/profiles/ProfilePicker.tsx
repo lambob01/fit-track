@@ -47,7 +47,7 @@ export function ProfilePicker({ profiles, switchingId, onSwitch, onDelete }: Pro
                   disabled={!guard.allowed}
                   title={guard.reason ?? undefined}
                   aria-label={`Delete profile ${profile.username}`}
-                  className="min-h-11 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:border-line disabled:text-content-muted disabled:opacity-60 disabled:hover:bg-transparent light:text-red-600"
+                  className="min-h-11 rounded-lg border border-line-strong px-3 text-sm font-medium text-content transition-colors hover:bg-content/10 disabled:cursor-not-allowed disabled:border-line disabled:text-content-muted disabled:opacity-60 disabled:hover:bg-transparent"
                 >
                   Delete
                 </button>

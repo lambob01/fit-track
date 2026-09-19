@@ -234,7 +234,7 @@ function ExerciseGroup({
           <button
             type="button"
             onClick={() => setConfirmRemoveOpen(true)}
-            className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+            className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-content-muted hover:text-content"
           >
             Remove
           </button>
@@ -764,7 +764,7 @@ export function WorkoutLoggerPage() {
         patchSetMutation.isError ||
         deleteSetMutation.isError ||
         reorderSetsMutation.isError) && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {errorDetail(
             addSetMutation.error ??
               addExerciseMutation.error ??
@@ -787,7 +787,7 @@ export function WorkoutLoggerPage() {
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           {patchWorkoutMutation.isError ? (
-            <p role="alert" className="text-xs text-red-400 light:text-red-600">
+            <p role="alert" className="text-xs font-medium text-content">
               {errorDetail(patchWorkoutMutation.error)}
             </p>
           ) : (
@@ -813,7 +813,7 @@ export function WorkoutLoggerPage() {
             deleteWorkoutMutation.reset()
             setDeleteWorkoutOpen(true)
           }}
-          className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+          className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-content"
         >
           Delete workout
         </button>

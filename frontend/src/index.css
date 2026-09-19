@@ -2,24 +2,56 @@
 
 @custom-variant light (&:where(.light, .light *));
 
-@theme {
-  --color-surface: #09090b;
-  --color-surface-raised: #18181b;
-  --color-line: #27272a;
-  --color-content: #fafafa;
-  --color-content-muted: #a1a1aa;
-  --color-accent: #34d399;
-  --color-accent-strong: #10b981;
+/*
+ * Monochrome UI chrome (spec §10.1). Dark is the default; `.light` overrides
+ * the neutral scale below. `accent`/`accent-strong` are legacy token names
+ * that now carry the neutral emphasis and inverted primary-action colours.
+ * `chart-1..chart-6` are the only colour in the app (charts only).
+ */
+@theme static {
+  --color-surface: #000;
+  --color-surface-sunken: #0a0a0a;
+  --color-surface-raised: #111;
+  --color-surface-strong: #1a1a1a;
+  --color-surface-elevated: #222;
+  --color-line: #2a2a2a;
+  --color-line-strong: #333;
+  --color-content: #f5f5f5;
+  --color-content-secondary: #e5e5e5;
+  --color-content-muted: #a3a3a3;
+  --color-content-faint: #525252;
+  --color-accent: #e5e5e5;
+  --color-accent-strong: #ffffff;
+
+  --chart-1: oklch(0.78 0.13 160);
+  --chart-2: oklch(0.72 0.12 250);
+  --chart-3: oklch(0.78 0.12 85);
+  --chart-4: oklch(0.72 0.14 330);
+  --chart-5: oklch(0.72 0.11 195);
+  --chart-6: oklch(0.70 0.13 290);
 }
 
 .light {
-  --color-surface: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f5f5f5;
   --color-surface-raised: #ffffff;
-  --color-line: #e4e4e7;
-  --color-content: #18181b;
-  --color-content-muted: #52525b;
-  --color-accent: #059669;
-  --color-accent-strong: #047857;
+  --color-surface-strong: #fafafa;
+  --color-surface-elevated: #f5f5f5;
+  --color-line: #e5e5e5;
+  --color-line-strong: #d4d4d4;
+  --color-content: #0a0a0a;
+  --color-content-secondary: #171717;
+  --color-content-muted: #525252;
+  --color-content-faint: #a3a3a3;
+  --color-accent: #171717;
+  --color-accent-strong: #0a0a0a;
+
+  --chart-1: oklch(0.58 0.13 160);
+  --chart-2: oklch(0.55 0.14 250);
+  --chart-3: oklch(0.60 0.12 85);
+  --chart-4: oklch(0.55 0.15 330);
+  --chart-5: oklch(0.55 0.11 195);
+  --chart-6: oklch(0.52 0.14 290);
 }
 
 @layer base {

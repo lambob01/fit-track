@@ -79,7 +79,7 @@ export function DaySheet({
           <button
             type="button"
             onClick={onCreatePlan}
-            className="min-h-11 w-full rounded-lg bg-accent-strong px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            className="min-h-11 w-full rounded-lg bg-accent-strong px-3 text-sm font-semibold text-surface transition-opacity hover:opacity-90"
           >
             Create a plan
           </button>
@@ -149,7 +149,7 @@ export function DaySheet({
           )}
 
           {assignMutation.isError && (
-            <p role="alert" className="pt-1 text-sm text-red-400 light:text-red-600">
+            <p role="alert" className="pt-1 text-sm font-medium text-content">
               {errorDetail(assignMutation.error)}
             </p>
           )}

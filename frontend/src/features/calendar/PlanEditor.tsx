@@ -190,7 +190,7 @@ export function PlanEditor({
         )}
 
         {saveMutation.isError && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {errorDetail(saveMutation.error)}
           </p>
         )}
@@ -198,7 +198,7 @@ export function PlanEditor({
         <button
           type="submit"
           disabled={!canSave}
-          className="min-h-11 w-full rounded-lg bg-accent-strong px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="min-h-11 w-full rounded-lg bg-accent-strong px-3 text-sm font-semibold text-surface transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {saveMutation.isPending ? 'Saving…' : plan === null ? 'Create plan' : 'Save plan'}
         </button>
@@ -211,7 +211,7 @@ export function PlanEditor({
                 deleteMutation.reset()
                 setDeleteOpen(true)
               }}
-              className="min-h-11 w-full rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+              className="min-h-11 w-full rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-content-muted hover:text-content"
             >
               Delete plan
             </button>

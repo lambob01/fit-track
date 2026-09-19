@@ -133,7 +133,7 @@ export function ProfileManager() {
       )}
 
       {switchError !== null && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {switchError}
         </p>
       )}
@@ -153,7 +153,7 @@ export function ProfileManager() {
           />
         </label>
         {createError !== null && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {createError}
           </p>
         )}

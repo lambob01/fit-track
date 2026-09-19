@@ -306,7 +306,7 @@ export function CardioForm({
         </label>
 
         {displayError !== null && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {displayError}
           </p>
         )}

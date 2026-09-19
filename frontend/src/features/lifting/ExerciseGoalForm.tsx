@@ -187,7 +187,7 @@ export function ExerciseGoalForm({
         </label>
 
         {displayError !== null && (
-          <p role="alert" className="text-sm text-red-400 light:text-red-600">
+          <p role="alert" className="text-sm font-medium text-content">
             {displayError}
           </p>
         )}
@@ -214,7 +214,7 @@ export function ExerciseGoalForm({
             type="button"
             onClick={handleRemove}
             disabled={mutation.isPending}
-            className="min-h-11 w-full text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600 disabled:opacity-50"
+            className="min-h-11 w-full text-sm font-medium text-content-muted transition-colors hover:text-content disabled:opacity-50"
           >
             Remove goal
           </button>

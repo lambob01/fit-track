@@ -31,7 +31,7 @@ export function DownloadBackupButton() {
         {exportMutation.isPending ? 'Preparing…' : 'Download backup first'}
       </button>
       {exportMutation.isError && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {errorDetail(exportMutation.error)}
         </p>
       )}

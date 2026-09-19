@@ -76,7 +76,7 @@ export function DangerZone() {
         <button
           type="button"
           onClick={() => openTarget({ kind: 'all' })}
-          className="min-h-11 w-full rounded-lg border border-red-500/60 px-4 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 light:text-red-600"
+          className="min-h-11 w-full rounded-lg border border-line-strong px-4 text-sm font-medium text-content transition-colors hover:bg-content/10"
         >
           Delete all data…
         </button>
@@ -97,7 +97,7 @@ export function DangerZone() {
               <button
                 type="button"
                 onClick={() => openTarget({ kind: 'category', category })}
-                className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-content-muted hover:text-content"
               >
                 Delete all
               </button>

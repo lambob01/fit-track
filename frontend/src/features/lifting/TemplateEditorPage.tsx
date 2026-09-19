@@ -190,7 +190,7 @@ function TemplateEditorForm({
       {archiveError !== null && (
         <p
           role="alert"
-          className="rounded-xl border border-red-500/40 bg-surface-raised p-3 text-xs font-medium text-red-400 light:text-red-600"
+          className="rounded-xl border border-line-strong bg-surface-raised p-3 text-xs font-medium text-content"
         >
           {archiveError}
         </p>
@@ -266,7 +266,7 @@ function TemplateEditorForm({
                       type="button"
                       aria-label="Remove exercise"
                       onClick={() => removeRow(row.key)}
-                      className="min-h-11 min-w-11 rounded-lg border border-line text-sm font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                      className="min-h-11 min-w-11 rounded-lg border border-line text-sm font-medium text-content-muted transition-colors hover:border-content-muted hover:text-content"
                     >
                       ×
                     </button>
@@ -328,7 +328,7 @@ function TemplateEditorForm({
       </section>
 
       {(validationError !== null || saveError !== null) && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {validationError ?? saveError}
         </p>
       )}
@@ -355,7 +355,7 @@ function TemplateEditorForm({
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+            className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-content"
           >
             Delete template
           </button>

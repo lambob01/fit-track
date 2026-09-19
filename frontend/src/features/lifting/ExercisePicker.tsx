@@ -132,7 +132,7 @@ export function ExercisePicker({ onSelect, onCancel }: ExercisePickerProps) {
       )}
 
       {resolveMutation.isError && (
-        <p role="alert" className="mt-2 text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="mt-2 text-sm font-medium text-content">
           {errorDetail(resolveMutation.error)}
         </p>
       )}

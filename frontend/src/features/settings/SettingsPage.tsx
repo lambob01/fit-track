@@ -419,12 +419,12 @@ function SettingsForm({ settings }: { settings: Settings }) {
       </label>
 
       {fieldError !== null && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {fieldError}
         </p>
       )}
       {requestError !== null && (
-        <p role="alert" className="text-sm text-red-400 light:text-red-600">
+        <p role="alert" className="text-sm font-medium text-content">
           {requestError}
         </p>
       )}

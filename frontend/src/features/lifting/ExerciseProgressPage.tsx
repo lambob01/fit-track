@@ -508,9 +508,9 @@ export function ExerciseProgressPage() {
               type="monotone"
               dataKey="value"
               name={seriesMeta.name}
-              stroke="var(--color-accent)"
+              stroke="var(--chart-1)"
               strokeWidth={2}
-              dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-accent)' }}
+              dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--chart-1)' }}
               connectNulls
             />
             <Line

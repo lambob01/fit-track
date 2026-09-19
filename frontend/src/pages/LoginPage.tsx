@@ -89,7 +89,7 @@ export function LoginPage() {
           </label>
 
           {error !== null && (
-            <p id="login-error" role="alert" className="text-sm text-red-400 light:text-red-600">
+            <p id="login-error" role="alert" className="text-sm font-medium text-content">
               {error}
             </p>
           )}

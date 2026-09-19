@@ -160,7 +160,7 @@ export function RunDetailPage() {
                   deleteMutation.reset()
                   setConfirmingDelete(true)
                 }}
-                className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-content-muted hover:text-content"
               >
                 Delete
               </button>
