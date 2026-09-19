@@ -84,6 +84,21 @@ Phase 2 added no new project commands; the lists above are complete.
   `goal_reps`, `goal_target_date`, and `goal_reps_bodyweight`.
 - `/api/measurements`, `/api/photos`, `/api/tags` remain 501 stubs.
 
+### Calendar (Phase 2.1)
+
+- Calendar modes Week | Month | List (component state, default Week); Month and List use the range
+  API.
+- Inline template quick-create from the calendar (day sheet and plan editor empty state); when
+  opened from a day, a successful create assigns it right away, and if the assignment fails the
+  template is kept and the retry sends only the slots PATCH.
+- Move/swap planned days from the day sheet: the full seven-day slots array is re-sent with the
+  two entries exchanged; no cross-week moves.
+- Current-week missed-workout offer is UI-only: it reads the current week's calendar and starts
+  via the existing from-template endpoint; the plan and adherence are never modified.
+- `GET /api/calendar` gains paired `from`/`to` date params (one-sided or combined with `week_start`
+  → 422; span ≤ 62 dates). Range responses add `weeks` per ISO week with counts clipped to the
+  range; `week_start` mode is unchanged and returns `weeks: null`.
+
 ### Conventions
 
 - Canonical units (kg, m, s, cm) and UTC storage are unchanged; convert only at the UI edge via

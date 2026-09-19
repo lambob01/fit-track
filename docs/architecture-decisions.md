@@ -132,3 +132,23 @@ sole channel: within a chart each series also differs by dash pattern and marker
 | Phase 2 frontend pure helpers: `lib/stepper.ts`, `lib/bmi.ts`, `lib/goals.ts`, `lib/pace.ts`, `lib/chartTheme.ts` | Step math, BMI formula/categories/disclaimer, the required-rate mirror and projections, pace/split inference, and the chart palette plus secondary channels are all unit-testable with Vitest when kept out of components. `lib/dateRange.ts`, `lib/duration.ts`, and `lib/uuid.ts` are unchanged from the MVP table above | `frontend/src/lib/` |
 | Logic extractions: `deleteStages`, extended `settingsDraft` and `progressSeries` | Keeps stateful components small and react-refresh compatible; `deleteStages` encodes the section 4 friction matrix, `settingsDraft` gained the goal/height fields and null semantics, `progressSeries` gained the new progress metrics and goal helpers | `frontend/src/components/deleteStages.ts`, `frontend/src/features/settings/settingsDraft.ts`, `frontend/src/features/lifting/progressSeries.ts` |
 | Playwright viewport smoke verification | Chrome is not installed on this machine, so Task D3 uses Playwright's headless Chromium to log in through the real form and assert no horizontal overflow on `/`, `/weight`, `/lifting`, `/running`, `/calendar`, and `/settings` at 375×667 and 414×896, saving screenshots; if the Chromium download fails, D3 records the exact error instead of claiming a pass. Not yet run at the time of this entry (F1/F2/F3 deferred browser verification to D3) | `docs/superpowers/plans/2026-09-19-phase2.md` (Task D3, `viewport-smoke.mjs`) |
+
+## Phase 2.1 — Scheduling and overviews
+
+The Phase 2.1 spec (`docs/superpowers/specs/2026-09-19-scheduling-overview-design.md`) is additive:
+the MVP and Phase 2 documents still govern anything it does not restate. It adds calendar overview
+modes (Week / Month / List), inline template creation from the calendar, and bounded rescheduling,
+with **no schema changes** — plans, slots, templates, and workouts already carry every needed
+field, and no migration was added. Week mode (`week_start`) is unchanged: only range mode
+populates `weeks`.
+
+### Phase 2.1 decisions
+
+| Decision | Rationale | Where |
+|---|---|---|
+| Move swaps the two day slots instead of overwriting the target | Overwriting would silently discard the target day's template; the confirm step names what each day receives, and the existing full-replace slots PATCH carries all seven days (a day without a slot row is sent as Rest) | `frontend/src/features/calendar/planSlots.ts` (`slotsWithSwap`), `frontend/src/features/calendar/DaySheet.tsx`, `backend/app/routers/plans.py` (`PATCH /api/plans/{id}`) |
+| Missed-workout offer is UI-only | Rescheduling missed days would drift the plan and make adherence fiction; the current week's offer starts via the existing from-template endpoint (logged today), never mutates the plan or adherence, and dismissal is per-local-date in `localStorage` | `frontend/src/features/calendar/MissedWorkoutsBanner.tsx`, `frontend/src/lib/missed.ts`, `backend/app/routers/workouts.py` (`start_from_template`) |
+| Calendar range capped at 62 dates | Bounds response size while comfortably covering a month grid; `from`/`to` must be paired, `from <= to`, and not combined with `week_start` | `backend/app/routers/plans.py` (`get_calendar`) |
+| Range `weeks` counts are clipped to `[from, to]` | A range can start mid-week, so grouping only the returned `days` prevents overcounting; the month header adherence sums these clipped entries | `backend/app/routers/plans.py` (`_weeks_out`, `_range_calendar`), `frontend/src/lib/calendarRange.ts` (`sumAdherence`), `frontend/src/features/calendar/CalendarPage.tsx` |
+| List view merges planned and actual client-side | One phone review surface without a new endpoint; the workouts query uses local-midnight bounds plus `limit=500` and a half-open client filter because the workouts API treats `to` as inclusive | `frontend/src/lib/calendarRange.ts` (`LIST_WORKOUT_LIMIT`, `workoutsInRange`, `buildListDays`), `frontend/src/features/calendar/CalendarList.tsx` |
+| Quick-create keeps a created template when day assignment fails | Create and assignment are separate requests; dropping the template on a failed PATCH would force re-entry, so it is kept and the retry sends only the assignment (no duplicate) | `frontend/src/features/calendar/TemplateQuickCreate.tsx`, `frontend/src/features/calendar/quickTemplate.ts` (`nextQuickCreateStep`) |
