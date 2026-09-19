@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, dashboardApi } from '../../api/client'
+import type { OnTrackStatus, UnitSystem, WeightGoalProgress } from '../../api/types'
 import { ProgressBar } from '../../components/ProgressBar'
 import { QuickAddBar } from '../../components/QuickAddBar'
 import { useSettings } from '../../context/SettingsContext'
 import { formatLocal } from '../../lib/datetime'
-import { formatDistance, formatPace, formatWeight } from '../../lib/units'
+import { formatDistance, formatPace, formatWeight, formatWeightRate } from '../../lib/units'
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -14,6 +15,42 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
       <div className="mt-2">{children}</div>
     </section>
+  )
+}
+
+function statusLabel(status: OnTrackStatus): string {
+  switch (status) {
+    case 'on_pace':
+      return '→ On pace'
+    case 'ahead':
+      return '↑ Ahead'
+    case 'behind':
+      return '↓ Behind'
+    case 'expired':
+      return '! Target date has passed.'
+  }
+}
+
+function WeightProgress({
+  progress,
+  unitSystem,
+}: {
+  progress: WeightGoalProgress
+  unitSystem: UnitSystem
+}) {
+  const required = progress.required_rate_kg_per_week
+  const effective = required ?? progress.rate_goal_kg_per_week
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="text-sm font-medium">{statusLabel(progress.status)}</p>
+      {progress.status !== 'expired' && effective !== null && (
+        <p className="mt-1 text-xs text-content-muted">
+          Trend {formatWeightRate(progress.trend_slope_kg_per_week, unitSystem)} ·{' '}
+          {required !== null ? 'Required' : 'Goal'} {formatWeightRate(effective, unitSystem)}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -89,6 +126,13 @@ export function DashboardPage() {
                   />
                 )}
               </>
+            )}
+
+            {data.weight_goal_progress !== null && (
+              <WeightProgress
+                progress={data.weight_goal_progress}
+                unitSystem={unitSystem}
+              />
             )}
           </Card>
 

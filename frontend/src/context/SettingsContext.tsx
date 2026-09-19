@@ -11,6 +11,7 @@ export interface SettingsContextValue {
   unitSystem: UnitSystem
   timezone: string
   goalWeightKg: number | null
+  heightCm: number | null
   weeklyRunGoalM: number | null
   maxHr: number | null
   updateSettings: (patch: SettingsPatch) => Promise<Settings>
@@ -92,6 +93,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       unitSystem: settings?.unit_system ?? 'metric',
       timezone: settings?.timezone ?? fallbackTimezone,
       goalWeightKg: settings?.goal_weight_kg ?? null,
+      heightCm: settings?.height_cm ?? null,
       weeklyRunGoalM: settings?.weekly_run_goal_m ?? null,
       maxHr: settings?.max_hr ?? null,
       updateSettings,

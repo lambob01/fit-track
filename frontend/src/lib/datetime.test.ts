@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addDaysToDateKey,
+  dateKeyToTimestamp,
   formatDateKey,
   formatLocal,
   fromLocalDateTimeInput,
@@ -72,5 +73,12 @@ describe('calendar date keys', () => {
 
   it('formats a date key without timezone conversion', () => {
     expect(formatDateKey('2026-09-19', 'EEE MMM d')).toBe('Sat Sep 19')
+  })
+
+  it('anchors a date key at local midday in the user timezone', () => {
+    for (const timezone of ['UTC', 'America/New_York', 'Pacific/Auckland']) {
+      const instant = new Date(dateKeyToTimestamp('2026-01-05', timezone)).toISOString()
+      expect(formatLocal(instant, timezone, 'yyyy-MM-dd HH:mm')).toBe('2026-01-05 12:00')
+    }
   })
 })

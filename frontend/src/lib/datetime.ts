@@ -43,3 +43,7 @@ export function mondayOfDateKey(dateKey: string): string {
 export function formatDateKey(dateKey: string, pattern: string): string {
   return format(parseDateKey(dateKey), pattern)
 }
+
+export function dateKeyToTimestamp(dateKey: string, timezone: string): number {
+  return fromZonedTime(`${dateKey}T12:00:00`, timezone).getTime()
+}

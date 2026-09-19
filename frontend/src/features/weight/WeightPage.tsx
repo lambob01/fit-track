@@ -6,10 +6,14 @@ import type { WeightBucket, WeightEntry, WeightEntryInput } from '../../api/type
 import { useSettings } from '../../context/SettingsContext'
 import { getPresetRange } from '../../lib/dateRange'
 import type { DateRange } from '../../lib/dateRange'
+import { BMI_CATEGORY_LABELS, BMI_DISCLAIMER, bmiCategory, calculateBmi } from '../../lib/bmi'
 import { formatLocal } from '../../lib/datetime'
 import { formatWeight } from '../../lib/units'
 import { WeightChart } from './WeightChart'
 import { WeightForm } from './WeightForm'
+
+const BMI_SCALE_MIN = 15
+const BMI_SCALE_MAX = 40
 
 function errorDetail(error: unknown): string {
   if (error instanceof ApiError) {
@@ -21,8 +25,32 @@ function errorDetail(error: unknown): string {
   return 'Something went wrong.'
 }
 
+function BmiScale({ bmi }: { bmi: number }) {
+  const position = Math.min(
+    100,
+    Math.max(0, ((bmi - BMI_SCALE_MIN) / (BMI_SCALE_MAX - BMI_SCALE_MIN)) * 100),
+  )
+
+  return (
+    <div className="mt-3">
+      <div className="relative">
+        <div className="h-2 rounded-full bg-gradient-to-r from-line via-content-muted to-content" />
+        <div
+          aria-hidden="true"
+          className="absolute -top-1 h-4 w-1 -translate-x-1/2 rounded-full bg-content"
+          style={{ left: `${position}%` }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between text-xs text-content-muted">
+        <span>Under 18.5</span>
+        <span>30+</span>
+      </div>
+    </div>
+  )
+}
+
 export function WeightPage() {
-  const { unitSystem, timezone } = useSettings()
+  const { unitSystem, timezone, heightCm } = useSettings()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const [range, setRange] = useState<DateRange>(() => getPresetRange('90d', timezone))
@@ -119,6 +147,12 @@ export function WeightPage() {
     }
   }
 
+  const latestEntry = entriesQuery.data?.[0] ?? null
+  const bmi =
+    latestEntry !== null && heightCm !== null
+      ? calculateBmi(latestEntry.weight_kg, heightCm)
+      : null
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -171,6 +205,20 @@ export function WeightPage() {
           bucket={bucket}
           onBucketChange={setBucket}
         />
+      )}
+
+      {bmi !== null && (
+        <section className="rounded-xl border border-line bg-surface-raised p-4">
+          <h2 className="text-sm font-semibold tracking-tight">BMI</h2>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-semibold tabular-nums">{bmi.toFixed(1)}</span>
+            <span className="text-sm text-content-muted">
+              {BMI_CATEGORY_LABELS[bmiCategory(bmi)]}
+            </span>
+          </div>
+          <BmiScale bmi={bmi} />
+          <p className="mt-3 text-xs text-content-muted">{BMI_DISCLAIMER}</p>
+        </section>
       )}
 
       <section className="rounded-xl border border-line bg-surface-raised p-4">

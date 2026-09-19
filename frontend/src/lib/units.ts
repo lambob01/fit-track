@@ -55,6 +55,27 @@ export function formatWeight(kg: number, system: UnitSystem): string {
   return `${trimTrailingZeros(kg.toFixed(1))} kg`
 }
 
+function formatSigned(value: number, digits: number): string {
+  const formatted = trimTrailingZeros(Math.abs(value).toFixed(digits))
+  if (value < 0) {
+    return `−${formatted}`
+  }
+  if (value > 0) {
+    return `+${formatted}`
+  }
+  return formatted
+}
+
+export function formatWeightRate(
+  kg: number,
+  system: UnitSystem,
+  period: 'week' | 'month' = 'week',
+): string {
+  const value = system === 'imperial' ? kgToLb(kg) : kg
+  const unit = system === 'imperial' ? 'lb' : 'kg'
+  return `${formatSigned(value, 2)} ${unit}/${period}`
+}
+
 export function formatDistance(m: number, system: UnitSystem): string {
   if (system === 'imperial') {
     return `${trimTrailingZeros(mToMi(m).toFixed(2))} mi`

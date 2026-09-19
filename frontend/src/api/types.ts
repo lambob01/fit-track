@@ -16,12 +16,22 @@ export interface DemoSeedCounts {
   weight_entries: number
 }
 
+export type MonthlyGoalMode = 'target' | 'rate'
+export type OnTrackStatus = 'on_pace' | 'ahead' | 'behind' | 'expired'
+
 export interface User {
   id: string
   username: string
   unit_system: UnitSystem
   timezone: string
   goal_weight_kg: number | null
+  goal_rate_kg_per_week: number | null
+  goal_monthly_mode: MonthlyGoalMode | null
+  goal_monthly_target_kg: number | null
+  goal_monthly_rate_kg: number | null
+  goal_weight_target_date: string | null
+  goal_weight_target_kg: number | null
+  height_cm: number | null
   weekly_run_goal_m: number | null
   max_hr: number | null
 }
@@ -32,6 +42,13 @@ export interface SettingsPatch {
   unit_system?: UnitSystem
   timezone?: string
   goal_weight_kg?: number | null
+  goal_rate_kg_per_week?: number | null
+  goal_monthly_mode?: MonthlyGoalMode | null
+  goal_monthly_target_kg?: number | null
+  goal_monthly_rate_kg?: number | null
+  goal_weight_target_date?: string | null
+  goal_weight_target_kg?: number | null
+  height_cm?: number | null
   weekly_run_goal_m?: number | null
   max_hr?: number | null
 }
@@ -121,9 +138,17 @@ export interface CardioWeek extends CardioSummary {
   goal_progress_pct: number | null
 }
 
+export interface WeightGoalProgress {
+  status: OnTrackStatus
+  trend_slope_kg_per_week: number
+  rate_goal_kg_per_week: number | null
+  required_rate_kg_per_week: number | null
+}
+
 export interface Dashboard {
   latest_weight: LatestWeight | null
   weight_goal: WeightGoal | null
+  weight_goal_progress: WeightGoalProgress | null
   last_workout: WorkoutSummary | null
   week_cardio: CardioWeek
 }
@@ -382,6 +407,23 @@ export interface WeightTrend {
   to_value: number
 }
 
+export interface WeightMonthlyGoal {
+  mode: MonthlyGoalMode | null
+  target_kg: number | null
+  rate_kg_per_month: number | null
+}
+
+export interface WeightSeriesGoals {
+  final_weight_kg: number | null
+  rate_kg_per_week: number | null
+  monthly: WeightMonthlyGoal
+}
+
+export interface RequiredRatePoint {
+  date: string
+  weight_kg: number
+}
+
 export interface WeightSeries {
   bucket: WeightBucket
   from: string
@@ -390,6 +432,9 @@ export interface WeightSeries {
   moving_average: MovingAveragePoint[]
   trend: WeightTrend | null
   goal_weight_kg: number | null
+  goals: WeightSeriesGoals
+  required_rate_line: RequiredRatePoint[] | null
+  on_track: OnTrackStatus | null
 }
 
 export interface PlanSlot {
