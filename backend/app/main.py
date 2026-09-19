@@ -16,6 +16,7 @@ from app.routers import (
     data,
     exercises,
     phase2,
+    plans,
     templates,
     weight,
     workouts,
@@ -50,6 +51,7 @@ app.include_router(settings_router.router)
 app.include_router(weight.router)
 app.include_router(workouts.router)
 app.include_router(templates.router)
+app.include_router(plans.router)
 
 app.include_router(phase2.measurements_router, dependencies=[Depends(get_current_user)])
 app.include_router(phase2.photos_router, dependencies=[Depends(get_current_user)])
