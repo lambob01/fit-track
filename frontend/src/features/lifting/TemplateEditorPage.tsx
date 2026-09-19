@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, exercisesApi, templatesApi } from '../../api/client'
 import type { Template, TemplateExerciseInput, TemplateInput, UnitSystem } from '../../api/types'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { NumberField } from '../../components/NumberField'
 import { useSettings } from '../../context/SettingsContext'
 import { randomId } from '../../lib/uuid'
@@ -85,7 +86,6 @@ function TemplateEditorForm({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-
   const archived = template?.is_archived ?? false
   const unitLabel = unitSystem === 'imperial' ? 'lb' : 'kg'
 
@@ -352,42 +352,28 @@ function TemplateEditorForm({
 
       {!isNew && (
         <section className="rounded-xl border border-line bg-surface-raised p-4">
-          {confirmDelete ? (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm">Delete this template? Past workouts are kept.</p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  disabled={isDeleting}
-                  className="min-h-11 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-                >
-                  {isDeleting ? 'Deleting…' : 'Delete template'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
-            >
-              Delete template
-            </button>
-          )}
-          {deleteError !== null && (
-            <p role="alert" className="mt-2 text-sm text-red-400 light:text-red-600">
-              {deleteError}
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+          >
+            Delete template
+          </button>
         </section>
+      )}
+
+      {!isNew && (
+        <ConfirmDialog
+          open={confirmDelete}
+          title="Delete template?"
+          message="Delete this template? Past workouts are kept."
+          confirmLabel="Delete template"
+          destructive
+          isPending={isDeleting}
+          error={deleteError}
+          onConfirm={onDelete}
+          onClose={() => setConfirmDelete(false)}
+        />
       )}
 
       <Toast message={toast} onDismiss={onDismissToast} />

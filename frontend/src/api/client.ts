@@ -11,6 +11,8 @@ import type {
   CardioWeek,
   CardioZones,
   Dashboard,
+  DataEntity,
+  DeletedCounts,
   DemoSeedCounts,
   Exercise,
   ExerciseInput,
@@ -173,6 +175,15 @@ export const dataApi = {
       body,
     }),
   seedDemo: () => api<DemoSeedCounts>('/api/data/demo', jsonRequest('POST')),
+  deleteEntity: (entity: DataEntity, range?: { from: string; to: string }) => {
+    const suffix =
+      range === undefined
+        ? ''
+        : `?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
+    return api<DeletedCounts>(`/api/data/${entity}${suffix}`, { method: 'DELETE' })
+  },
+  deleteAll: (password: string) =>
+    api<DeletedCounts>('/api/data/all', jsonRequest('DELETE', { password })),
 }
 
 export const profilesApi = {

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ApiError, weightApi } from '../../api/client'
 import type { WeightBucket, WeightEntry, WeightEntryInput } from '../../api/types'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useSettings } from '../../context/SettingsContext'
 import { getPresetRange } from '../../lib/dateRange'
 import type { DateRange } from '../../lib/dateRange'
@@ -57,7 +58,7 @@ export function WeightPage() {
   const [bucket, setBucket] = useState<WeightBucket>('day')
   const [formOpen, setFormOpen] = useState(() => searchParams.get('add') === '1')
   const [editing, setEditing] = useState<WeightEntry | null>(null)
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deletingEntry, setDeletingEntry] = useState<WeightEntry | null>(null)
   const formRef = useRef<HTMLDivElement>(null)
 
   const entriesQuery = useQuery({
@@ -98,7 +99,7 @@ export function WeightPage() {
     mutationFn: weightApi.deleteEntry,
     onSuccess: () => {
       invalidateWeightData()
-      setPendingDeleteId(null)
+      setDeletingEntry(null)
     },
   })
 
@@ -264,56 +265,57 @@ export function WeightPage() {
                   )}
                 </div>
 
-                {pendingDeleteId === entry.id ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(entry.id)}
-                      className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-                    >
-                      {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDeleteId(null)}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEditForm(entry)}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteMutation.reset()
-                        setPendingDeleteId(entry.id)
-                      }}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEditForm(entry)}
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deleteMutation.reset()
+                      setDeletingEntry(entry)
+                    }}
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
-
-        {deleteMutation.isError && (
-          <p role="alert" className="mt-3 text-sm text-red-400 light:text-red-600">
-            {errorDetail(deleteMutation.error)}
-          </p>
-        )}
       </section>
+
+      <ConfirmDialog
+        open={deletingEntry !== null}
+        title="Delete weight entry"
+        message={
+          deletingEntry === null
+            ? undefined
+            : `Delete the ${formatWeight(deletingEntry.weight_kg, unitSystem)} entry from ${formatLocal(
+                deletingEntry.measured_at,
+                timezone,
+                'MMM d, yyyy',
+              )}? This cannot be undone.`
+        }
+        confirmLabel="Delete"
+        destructive
+        isPending={deleteMutation.isPending}
+        error={deleteMutation.isError ? errorDetail(deleteMutation.error) : null}
+        onConfirm={() => {
+          if (deletingEntry !== null) {
+            deleteMutation.mutate(deletingEntry.id)
+          }
+        }}
+        onClose={() => {
+          deleteMutation.reset()
+          setDeletingEntry(null)
+        }}
+      />
     </div>
   )
 }

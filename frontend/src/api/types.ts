@@ -78,6 +78,18 @@ export interface ImportCounts {
   updated: Record<string, number>
 }
 
+export type DataEntity =
+  | 'weight_entries'
+  | 'measurements'
+  | 'workouts'
+  | 'cardio_activities'
+  | 'sets'
+  | 'plans'
+
+export interface DeletedCounts {
+  deleted: Record<string, number>
+}
+
 export interface LatestWeight {
   measured_at: string
   weight_kg: number

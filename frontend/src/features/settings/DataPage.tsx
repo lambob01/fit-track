@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react'
 import { ApiError, dataApi } from '../../api/client'
 import type { ExportEntity, ImportCounts } from '../../api/types'
 import { useSettings } from '../../context/SettingsContext'
-import { localDateKey } from '../../lib/datetime'
+import { download, downloadJsonBackup } from './backup'
 
 const IMPORT_MAX_BYTES = 25 * 1024 * 1024
 
@@ -44,17 +44,6 @@ function importErrorDetail(error: unknown): string {
     return 'Import failed: the file is larger than the 25 MB limit.'
   }
   return `Import failed: ${errorDetail(error)}`
-}
-
-function download(content: BlobPart, type: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }))
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
 }
 
 function ImportSummary({ counts }: { counts: ImportCounts }) {
@@ -107,14 +96,7 @@ export function DataPage() {
   const [sizeError, setSizeError] = useState<string | null>(null)
 
   const exportJsonMutation = useMutation({
-    mutationFn: async () => {
-      const envelope = await dataApi.exportJson()
-      download(
-        JSON.stringify(envelope, null, 2),
-        'application/json',
-        `tracker-export-${localDateKey(new Date().toISOString(), timezone)}.json`,
-      )
-    },
+    mutationFn: () => downloadJsonBackup(timezone),
   })
 
   const exportCsvMutation = useMutation({

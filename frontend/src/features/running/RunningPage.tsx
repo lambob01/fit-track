@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ApiError, cardioApi, shoesApi } from '../../api/client'
+import { ApiError, cardioApi, dataApi, shoesApi } from '../../api/client'
 import type {
   CardioActivity,
   CardioActivityInput,
@@ -15,11 +15,19 @@ import type {
 import { BottomSheet } from '../../components/BottomSheet'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateRangePicker } from '../../components/DateRangePicker'
+import { DeleteFlow } from '../../components/DeleteFlow'
 import { NumberField } from '../../components/NumberField'
 import { useSettings } from '../../context/SettingsContext'
 import { getPresetRange } from '../../lib/dateRange'
 import type { DateRange } from '../../lib/dateRange'
-import { formatDateKey, formatLocal } from '../../lib/datetime'
+import {
+  addDaysToDateKey,
+  formatDateKey,
+  formatLocal,
+  localDateKey,
+  localWeekRange,
+  todayDateKey,
+} from '../../lib/datetime'
 import { formatDuration } from '../../lib/duration'
 import {
   distanceForDisplay,
@@ -28,6 +36,8 @@ import {
   formatPace,
 } from '../../lib/units'
 import { QueryErrorNotice } from '../lifting/QueryErrorNotice'
+import { DownloadBackupButton } from '../settings/BackupFirst'
+import { formatDeletedCounts } from '../settings/dangerZoneLogic'
 import { CARDIO_TYPE_LABELS, CardioForm } from './CardioForm'
 import { PrCard } from './PrCard'
 import { StreakHeatmap } from './StreakHeatmap'
@@ -227,7 +237,9 @@ export function RunningPage() {
   const [range, setRange] = useState<DateRange>(() => getPresetRange('30d', timezone))
   const [formOpen, setFormOpen] = useState(() => searchParams.get('add') === '1')
   const [editing, setEditing] = useState<CardioActivity | null>(null)
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deletingActivity, setDeletingActivity] = useState<CardioActivity | null>(null)
+  const [weekDeleteOpen, setWeekDeleteOpen] = useState(false)
+  const [weekDeleteStatus, setWeekDeleteStatus] = useState<string | null>(null)
   const [shoeFormOpen, setShoeFormOpen] = useState(false)
   const [editingShoe, setEditingShoe] = useState<Shoe | null>(null)
   const [deletingShoe, setDeletingShoe] = useState<Shoe | null>(null)
@@ -293,7 +305,25 @@ export function RunningPage() {
     mutationFn: cardioApi.remove,
     onSuccess: () => {
       invalidateTrainingData()
-      setPendingDeleteId(null)
+      setDeletingActivity(null)
+    },
+  })
+
+  const weekRange = useMemo(
+    () => localWeekRange(todayDateKey(timezone), timezone),
+    [timezone],
+  )
+  const weekStartKey = useMemo(
+    () => localDateKey(weekRange.from, timezone),
+    [weekRange, timezone],
+  )
+
+  const weekDeleteMutation = useMutation({
+    mutationFn: () => dataApi.deleteEntity('cardio_activities', weekRange),
+    onSuccess: (data) => {
+      invalidateTrainingData()
+      setWeekDeleteOpen(false)
+      setWeekDeleteStatus(formatDeletedCounts(data.deleted))
     },
   })
 
@@ -627,7 +657,20 @@ export function RunningPage() {
       </section>
 
       <section className="rounded-xl border border-line bg-surface-raised p-4">
-        <h2 className="text-sm font-semibold tracking-tight">Activities</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold tracking-tight">Activities</h2>
+          <button
+            type="button"
+            onClick={() => {
+              weekDeleteMutation.reset()
+              setWeekDeleteStatus(null)
+              setWeekDeleteOpen(true)
+            }}
+            className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+          >
+            Delete this week
+          </button>
+        </div>
 
         {activitiesQuery.isPending ? (
           <p className="mt-3 text-sm text-content-muted">Loading activities…</p>
@@ -681,53 +724,33 @@ export function RunningPage() {
                   )}
                 </Link>
 
-                {pendingDeleteId === activity.id ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(activity.id)}
-                      className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-                    >
-                      {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDeleteId(null)}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEditForm(activity)}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteMutation.reset()
-                        setPendingDeleteId(activity.id)
-                      }}
-                      className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEditForm(activity)}
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deleteMutation.reset()
+                      setDeletingActivity(activity)
+                    }}
+                    className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
 
-        {deleteMutation.isError && (
-          <p role="alert" className="mt-3 text-sm text-red-400 light:text-red-600">
-            {errorDetail(deleteMutation.error)}
+        {weekDeleteStatus !== null && (
+          <p role="status" className="mt-3 text-sm text-content-muted">
+            {weekDeleteStatus}
           </p>
         )}
       </section>
@@ -770,6 +793,54 @@ export function RunningPage() {
           setDeletingShoe(null)
         }}
       />
+
+      <ConfirmDialog
+        open={deletingActivity !== null}
+        title="Delete activity"
+        message={
+          deletingActivity === null
+            ? undefined
+            : `Delete the ${CARDIO_TYPE_LABELS[deletingActivity.type].toLowerCase()} from ${formatLocal(
+                deletingActivity.performed_at,
+                timezone,
+                'MMM d, yyyy',
+              )}? This cannot be undone.`
+        }
+        confirmLabel="Delete"
+        destructive
+        isPending={deleteMutation.isPending}
+        error={deleteMutation.isError ? errorDetail(deleteMutation.error) : null}
+        onConfirm={() => {
+          if (deletingActivity !== null) {
+            deleteMutation.mutate(deletingActivity.id)
+          }
+        }}
+        onClose={() => {
+          deleteMutation.reset()
+          setDeletingActivity(null)
+        }}
+      />
+
+      {weekDeleteOpen && (
+        <DeleteFlow
+          open
+          title="Delete this week's cardio?"
+          message={`Delete every cardio activity from ${formatDateKey(
+            weekStartKey,
+            'MMM d',
+          )} to ${formatDateKey(addDaysToDateKey(weekStartKey, 6), 'MMM d, yyyy')}? This cannot be undone.`}
+          confirmLabel="Delete week"
+          typeToConfirm
+          backup={<DownloadBackupButton />}
+          isPending={weekDeleteMutation.isPending}
+          error={weekDeleteMutation.isError ? errorDetail(weekDeleteMutation.error) : null}
+          onConfirm={() => weekDeleteMutation.mutate()}
+          onClose={() => {
+            weekDeleteMutation.reset()
+            setWeekDeleteOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

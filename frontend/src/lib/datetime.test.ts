@@ -6,6 +6,7 @@ import {
   formatLocal,
   fromLocalDateTimeInput,
   localDateKey,
+  localWeekRange,
   mondayOfDateKey,
   toLocalDateTimeInput,
   todayDateKey,
@@ -80,5 +81,41 @@ describe('calendar date keys', () => {
       const instant = new Date(dateKeyToTimestamp('2026-01-05', timezone)).toISOString()
       expect(formatLocal(instant, timezone, 'yyyy-MM-dd HH:mm')).toBe('2026-01-05 12:00')
     }
+  })
+})
+
+describe('localWeekRange', () => {
+  it('returns the local Monday-to-Monday range as UTC instants', () => {
+    expect(localWeekRange('2026-09-19', 'UTC')).toEqual({
+      from: '2026-09-14T00:00:00.000Z',
+      to: '2026-09-21T00:00:00.000Z',
+    })
+  })
+
+  it('converts local midnight using the timezone offset', () => {
+    expect(localWeekRange('2026-09-19', 'America/New_York')).toEqual({
+      from: '2026-09-14T04:00:00.000Z',
+      to: '2026-09-21T04:00:00.000Z',
+    })
+  })
+
+  it('handles a DST transition inside the week', () => {
+    expect(localWeekRange('2026-03-08', 'America/New_York')).toEqual({
+      from: '2026-03-02T05:00:00.000Z',
+      to: '2026-03-09T04:00:00.000Z',
+    })
+  })
+
+  it('handles a DST transition in the southern hemisphere', () => {
+    expect(localWeekRange('2026-04-05', 'Pacific/Auckland')).toEqual({
+      from: '2026-03-29T11:00:00.000Z',
+      to: '2026-04-05T12:00:00.000Z',
+    })
+  })
+
+  it('returns the same week for a Monday input', () => {
+    expect(localWeekRange('2026-09-14', 'UTC')).toEqual(
+      localWeekRange('2026-09-20', 'UTC'),
+    )
   })
 })

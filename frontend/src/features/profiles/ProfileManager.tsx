@@ -3,14 +3,11 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ApiError, profilesApi } from '../../api/client'
 import type { Profile } from '../../api/types'
-import { BottomSheet } from '../../components/BottomSheet'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { TypeToConfirm } from '../../components/TypeToConfirm'
+import { DeleteFlow } from '../../components/DeleteFlow'
 import { useAuth } from '../../context/AuthContext'
+import { BackupUnavailableNote } from '../settings/BackupFirst'
 import { ProfilePicker } from './ProfilePicker'
 import { PROFILES_QUERY_KEY, profileNameError } from './profileLogic'
-
-type DeleteStage = 'confirm' | 'type' | 'password'
 
 function errorDetail(error: unknown): string {
   if (error instanceof ApiError) {
@@ -36,9 +33,6 @@ export function ProfileManager() {
   const [status, setStatus] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
-  const [deleteStage, setDeleteStage] = useState<DeleteStage>('confirm')
-  const [password, setPassword] = useState('')
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const createMutation = useMutation({
     mutationFn: profilesApi.create,
@@ -70,14 +64,8 @@ export function ProfileManager() {
     onSuccess: (_data, variables) => {
       const target = profiles.find((profile) => profile.id === variables.profileId)
       setDeleteTarget(null)
-      setDeleteStage('confirm')
-      setPassword('')
-      setDeleteError(null)
       setStatus(target === undefined ? 'Profile deleted.' : `Profile “${target.username}” deleted.`)
       void queryClient.invalidateQueries({ queryKey: PROFILES_QUERY_KEY })
-    },
-    onError: (error) => {
-      setDeleteError(errorDetail(error))
     },
   })
 
@@ -95,28 +83,15 @@ export function ProfileManager() {
   }
 
   function startDelete(profile: Profile) {
-    setDeleteError(null)
-    setPassword('')
-    setDeleteStage('confirm')
+    deleteMutation.reset()
     setDeleteTarget(profile)
   }
 
   function cancelDelete() {
     if (!deleteMutation.isPending) {
+      deleteMutation.reset()
       setDeleteTarget(null)
-      setDeleteStage('confirm')
-      setPassword('')
-      setDeleteError(null)
     }
-  }
-
-  function handleDelete(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (deleteTarget === null) {
-      return
-    }
-    setDeleteError(null)
-    deleteMutation.mutate({ profileId: deleteTarget.id, password })
   }
 
   const switchError = switchMutation.isError ? errorDetail(switchMutation.error) : null
@@ -197,77 +172,32 @@ export function ProfileManager() {
         </p>
       )}
 
-      <ConfirmDialog
-        open={deleteTarget !== null && deleteStage === 'confirm'}
-        title={`Delete profile ${deleteTarget?.username ?? ''}?`}
-        message="This permanently deletes the profile and all of its workouts, weight entries, and cardio activities. This cannot be undone."
-        confirmLabel="Continue"
-        destructive
-        onConfirm={() => setDeleteStage('type')}
-        onClose={cancelDelete}
-      >
-        <p className="rounded-lg border border-line bg-surface p-3 text-xs text-content-muted">
-          {deleteTarget?.has_data === true
-            ? 'Backup unavailable — the JSON export covers only the active profile. To keep a copy, switch to this profile, download the export from Settings → Data, then switch back and delete it.'
-            : 'This profile has no data to back up.'}
-        </p>
-      </ConfirmDialog>
-
-      <TypeToConfirm
-        open={deleteTarget !== null && deleteStage === 'type'}
-        title="Confirm deletion"
-        message={`Type DELETE to confirm deleting the profile “${deleteTarget?.username ?? ''}”.`}
-        onConfirm={() => setDeleteStage('password')}
-        onClose={cancelDelete}
-      />
-
-      <BottomSheet
-        open={deleteTarget !== null && deleteStage === 'password'}
-        onClose={cancelDelete}
-        title="Enter password"
-      >
-        <form onSubmit={handleDelete} className="space-y-4 pb-2">
-          <p className="text-sm text-content-muted">
-            Enter the login account password to permanently delete the profile “
-            {deleteTarget?.username ?? ''}”.
-          </p>
-          <label className="block space-y-1">
-            <span className="block text-xs text-content-muted">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setDeleteError(null)
-              }}
-              autoComplete="current-password"
-              className={INPUT_CLASS}
+      {deleteTarget !== null && (
+        <DeleteFlow
+          open
+          title={`Delete profile ${deleteTarget.username}?`}
+          message="This permanently deletes the profile and all of its workouts, weight entries, and cardio activities. This cannot be undone."
+          confirmLabel="Delete profile"
+          typeToConfirm
+          requirePassword
+          passwordMessage={`Enter the login account password to permanently delete the profile “${deleteTarget.username}”.`}
+          backup={
+            <BackupUnavailableNote
+              reason={
+                deleteTarget.has_data
+                  ? 'Backup unavailable — the JSON export covers only the active profile. To keep a copy, switch to this profile, download the export from Settings → Data, then switch back and delete it.'
+                  : 'This profile has no data to back up.'
+              }
             />
-          </label>
-          {deleteError !== null && (
-            <p role="alert" className="text-sm text-red-400 light:text-red-600">
-              {deleteError}
-            </p>
-          )}
-          <div className="flex flex-col gap-2 sm:flex-row-reverse">
-            <button
-              type="submit"
-              disabled={deleteMutation.isPending || password === ''}
-              className="min-h-11 w-full rounded-lg border border-red-500/60 px-4 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600 sm:w-auto"
-            >
-              {deleteMutation.isPending ? 'Deleting…' : 'Delete profile'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelDelete}
-              disabled={deleteMutation.isPending}
-              className="min-h-11 w-full rounded-lg border border-line px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50 sm:w-auto"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </BottomSheet>
+          }
+          isPending={deleteMutation.isPending}
+          error={deleteMutation.isError ? errorDetail(deleteMutation.error) : null}
+          onConfirm={(password) =>
+            deleteMutation.mutate({ profileId: deleteTarget.id, password: password ?? '' })
+          }
+          onClose={cancelDelete}
+        />
+      )}
     </section>
   )
 }

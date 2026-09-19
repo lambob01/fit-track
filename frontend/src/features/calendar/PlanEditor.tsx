@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ApiError, plansApi } from '../../api/client'
 import type { Plan, Template } from '../../api/types'
 import { BottomSheet } from '../../components/BottomSheet'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { QueryErrorNotice } from '../lifting/QueryErrorNotice'
 import { slotInputsFromDraft } from './planSlots'
 
@@ -59,7 +60,7 @@ export function PlanEditor({
   const [name, setName] = useState(plan?.name ?? '')
   const [slotIds, setSlotIds] = useState<Record<number, string>>(() => initialSlotIds(plan))
   const [makeActive, setMakeActive] = useState(plan === null ? true : plan.is_active)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const currentSlotNames = useMemo(() => {
     const names = new Map<number, string>()
@@ -111,16 +112,17 @@ export function PlanEditor({
   const canSave = name.trim() !== '' && !saveMutation.isPending
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
-      <form
-        className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (canSave) {
-            saveMutation.mutate()
-          }
-        }}
-      >
+    <>
+      <BottomSheet open={open && !deleteOpen} onClose={onClose} title={title}>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (canSave) {
+              saveMutation.mutate()
+            }
+          }}
+        >
         <label className="block text-sm">
           <span className="font-medium">Plan name</span>
           <input
@@ -203,44 +205,41 @@ export function PlanEditor({
 
         {plan !== null && (
           <div className="border-t border-line pt-3">
-            {confirmingDelete ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate()}
-                  className="min-h-11 flex-1 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-                >
-                  {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  className="min-h-11 flex-1 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  deleteMutation.reset()
-                  setConfirmingDelete(true)
-                }}
-                className="min-h-11 w-full rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
-              >
-                Delete plan
-              </button>
-            )}
-            {deleteMutation.isError && (
-              <p role="alert" className="mt-2 text-sm text-red-400 light:text-red-600">
-                {errorDetail(deleteMutation.error)}
-              </p>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                deleteMutation.reset()
+                setDeleteOpen(true)
+              }}
+              className="min-h-11 w-full rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+            >
+              Delete plan
+            </button>
           </div>
         )}
       </form>
-    </BottomSheet>
+      </BottomSheet>
+
+      {plan !== null && (
+        <ConfirmDialog
+          open={deleteOpen}
+          title="Delete plan?"
+          message={
+            plan.is_active
+              ? `Delete “${plan.name}”? It is the active plan; afterwards the calendar will show no active plan.`
+              : `Delete “${plan.name}”? This cannot be undone.`
+          }
+          confirmLabel="Delete"
+          destructive
+          isPending={deleteMutation.isPending}
+          error={deleteMutation.isError ? errorDetail(deleteMutation.error) : null}
+          onConfirm={() => deleteMutation.mutate()}
+          onClose={() => {
+            deleteMutation.reset()
+            setDeleteOpen(false)
+          }}
+        />
+      )}
+    </>
   )
 }

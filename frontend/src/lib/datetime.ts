@@ -40,6 +40,21 @@ export function mondayOfDateKey(dateKey: string): string {
   return addDaysToDateKey(dateKey, weekday === 0 ? -6 : 1 - weekday)
 }
 
+export interface LocalWeekRange {
+  from: string
+  to: string
+}
+
+export function localWeekRange(dateKey: string, timezone: string): LocalWeekRange {
+  const monday = mondayOfDateKey(dateKey)
+  const nextMonday = addDaysToDateKey(monday, 7)
+
+  return {
+    from: fromZonedTime(`${monday}T00:00:00`, timezone).toISOString(),
+    to: fromZonedTime(`${nextMonday}T00:00:00`, timezone).toISOString(),
+  }
+}
+
 export function formatDateKey(dateKey: string, pattern: string): string {
   return format(parseDateKey(dateKey), pattern)
 }

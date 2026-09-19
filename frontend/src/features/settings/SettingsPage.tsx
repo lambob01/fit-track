@@ -10,6 +10,7 @@ import { todayDateKey } from '../../lib/datetime'
 import { requiredRatePerWeek } from '../../lib/goals'
 import { formatWeight, formatWeightRate } from '../../lib/units'
 import { ProfileManager } from '../profiles/ProfileManager'
+import { DangerZone } from './DangerZone'
 import { DataPage } from './DataPage'
 import {
   buildSettingsPatch,
@@ -514,8 +515,10 @@ export function SettingsPage() {
         id="settings-panel-data"
         aria-labelledby="settings-tab-data"
         hidden={tab !== 'data'}
+        className="space-y-4"
       >
         <DataPage />
+        <DangerZone />
       </div>
     </div>
   )

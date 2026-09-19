@@ -15,9 +15,12 @@ import type {
   WorkoutSet,
 } from '../../api/types'
 import { useSettings } from '../../context/SettingsContext'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { DeleteFlow } from '../../components/DeleteFlow'
 import { formatLocal } from '../../lib/datetime'
 import { randomId } from '../../lib/uuid'
 import { formatWeight } from '../../lib/units'
+import { DownloadBackupButton } from '../settings/BackupFirst'
 import { ExercisePicker } from './ExercisePicker'
 import type { PickedExercise } from './ExercisePicker'
 import { QueryErrorNotice } from './QueryErrorNotice'
@@ -108,6 +111,7 @@ interface ExerciseGroupProps {
   isAddingSet: boolean
   isRemoving: boolean
   isReordering: boolean
+  removeError: string | null
   pendingSetId: string | null
   onAddSet: (draft: SetDraft) => void
   onPatchSet: (setId: string, patch: SetPatch) => Promise<unknown>
@@ -125,6 +129,7 @@ function ExerciseGroup({
   isAddingSet,
   isRemoving,
   isReordering,
+  removeError,
   pendingSetId,
   onAddSet,
   onPatchSet,
@@ -132,7 +137,7 @@ function ExerciseGroup({
   onReorderSets,
   onRemove,
 }: ExerciseGroupProps) {
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
 
   function moveSet(setId: string, direction: 'up' | 'down') {
     const ids = item.sets.map((entry) => entry.id)
@@ -211,34 +216,32 @@ function ExerciseGroup({
           )}
         </div>
 
-        {confirmRemove ? (
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={onRemove}
-              disabled={isRemoving}
-              className="min-h-11 rounded-lg border border-red-500/60 px-3 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-            >
-              {isRemoving ? 'Removing…' : 'Confirm'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmRemove(false)}
-              className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmRemove(true)}
-            className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
-          >
-            Remove
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setConfirmRemoveOpen(true)}
+          className="min-h-11 shrink-0 rounded-lg border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:border-red-500/60 hover:text-red-400 light:hover:text-red-600"
+        >
+          Remove
+        </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmRemoveOpen}
+        title="Remove exercise?"
+        message={
+          item.sets.length === 0
+            ? `Remove ${exercise?.name ?? 'this exercise'} from this workout?`
+            : `Remove ${exercise?.name ?? 'this exercise'} and its ${item.sets.length} ${
+                item.sets.length === 1 ? 'set' : 'sets'
+              } from this workout?`
+        }
+        confirmLabel="Remove"
+        destructive
+        isPending={isRemoving}
+        error={removeError}
+        onConfirm={onRemove}
+        onClose={() => setConfirmRemoveOpen(false)}
+      />
 
       {item.sets.length === 0 && perfQuery.isError && (
         <QueryErrorNotice
@@ -294,7 +297,7 @@ export function WorkoutLoggerPage() {
   const [notesDraft, setNotesDraft] = useState<string | null>(null)
   const [focusGroupId, setFocusGroupId] = useState<string | null>(null)
   const focusedGroupRef = useRef<string | null>(null)
-  const [confirmDeleteWorkout, setConfirmDeleteWorkout] = useState(false)
+  const [deleteWorkoutOpen, setDeleteWorkoutOpen] = useState(false)
 
   const dismissToast = useCallback(() => {
     setToast(null)
@@ -705,6 +708,12 @@ export function WorkoutLoggerPage() {
               removeExerciseMutation.isPending &&
               removeExerciseMutation.variables?.itemId === item.id
             }
+            removeError={
+              removeExerciseMutation.isError &&
+              removeExerciseMutation.variables?.itemId === item.id
+                ? errorDetail(removeExerciseMutation.error)
+                : null
+            }
             isReordering={reorderSetsMutation.isPending}
             pendingSetId={pendingSetId}
             onAddSet={(draft) => handleAddSet(item, draft)}
@@ -778,42 +787,41 @@ export function WorkoutLoggerPage() {
       </section>
 
       <section className="rounded-xl border border-line bg-surface-raised p-4">
-        {confirmDeleteWorkout ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm">Delete this workout and all its sets?</p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => deleteWorkoutMutation.mutate()}
-                disabled={deleteWorkoutMutation.isPending}
-                className="min-h-11 rounded-lg border border-red-500/60 px-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 light:text-red-600"
-              >
-                {deleteWorkoutMutation.isPending ? 'Deleting…' : 'Delete workout'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteWorkout(false)}
-                className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
-              >
-                Cancel
-              </button>
-            </div>
-            {deleteWorkoutMutation.isError && (
-              <p role="alert" className="w-full text-xs text-red-400 light:text-red-600">
-                {errorDetail(deleteWorkoutMutation.error)}
-              </p>
-            )}
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDeleteWorkout(true)}
-            className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
-          >
-            Delete workout
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            deleteWorkoutMutation.reset()
+            setDeleteWorkoutOpen(true)
+          }}
+          className="min-h-11 text-sm font-medium text-content-muted transition-colors hover:text-red-400 light:hover:text-red-600"
+        >
+          Delete workout
+        </button>
       </section>
+
+      {deleteWorkoutOpen && (
+        <DeleteFlow
+          open
+          title="Delete this workout?"
+          message={`Delete ${
+            workout.name === null || workout.name === ''
+              ? 'this workout'
+              : `“${workout.name}”`
+          }, its ${workout.exercises.length} ${
+            workout.exercises.length === 1 ? 'exercise' : 'exercises'
+          }, and ${setCount} ${setCount === 1 ? 'set' : 'sets'}? This cannot be undone.`}
+          confirmLabel="Delete workout"
+          typeToConfirm
+          backup={<DownloadBackupButton />}
+          isPending={deleteWorkoutMutation.isPending}
+          error={deleteWorkoutMutation.isError ? errorDetail(deleteWorkoutMutation.error) : null}
+          onConfirm={() => deleteWorkoutMutation.mutate()}
+          onClose={() => {
+            deleteWorkoutMutation.reset()
+            setDeleteWorkoutOpen(false)
+          }}
+        />
+      )}
 
       <Toast
         key={undoDelete === null ? 'message' : `undo:${undoDelete.set.id}`}
