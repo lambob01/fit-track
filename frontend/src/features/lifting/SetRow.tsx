@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import type { SetPatch, UnitSystem, WorkoutSet } from '../../api/types'
 import { NumberField } from '../../components/NumberField'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  PencilIcon,
+  TrashIcon,
+} from '../../components/icons'
 import { formatWeight, weightStep } from '../../lib/units'
 import { displayToKg, displayWeight } from './liftingUnits'
 
@@ -52,16 +58,32 @@ export interface SetRowProps {
   set: WorkoutSet
   unitSystem: UnitSystem
   isBusy: boolean
-  onPatch: (patch: SetPatch) => void
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onPatch: (patch: SetPatch) => Promise<unknown>
   onDelete: () => void
+  onMove: (direction: 'up' | 'down') => void
 }
 
-export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowProps) {
+const iconButtonClass =
+  'grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg text-content-muted transition-colors hover:text-content disabled:opacity-30'
+
+export function SetRow({
+  set,
+  unitSystem,
+  isBusy,
+  canMoveUp,
+  canMoveDown,
+  onPatch,
+  onDelete,
+  onMove,
+}: SetRowProps) {
   const [expanded, setExpanded] = useState(false)
   const [weight, setWeight] = useState<number | null>(null)
   const [reps, setReps] = useState<number | null>(null)
   const [rpe, setRpe] = useState<number | null>(null)
   const [isWarmup, setIsWarmup] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const unitLabel = unitSystem === 'imperial' ? 'lb' : 'kg'
 
@@ -73,23 +95,66 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
     setExpanded(true)
   }
 
-  function save() {
-    if (reps === null || reps < 1) {
+  async function save() {
+    if (reps === null || reps < 1 || isBusy || isSaving) {
       return
     }
-    onPatch({
-      weight_kg: displayToKg(weight, unitSystem),
-      reps,
-      rpe: normalizeRpe(rpe),
-      is_warmup: isWarmup,
-    })
-    setExpanded(false)
+    setIsSaving(true)
+    try {
+      await onPatch({
+        weight_kg: displayToKg(weight, unitSystem),
+        reps,
+        rpe: normalizeRpe(rpe),
+        is_warmup: isWarmup,
+      })
+      setExpanded(false)
+    } catch {
+      // The parent rolls the optimistic update back and shows the error.
+    } finally {
+      setIsSaving(false)
+    }
   }
+
+  const reorderButtons = (
+    <div className="flex shrink-0 items-center">
+      <button
+        type="button"
+        aria-label={`Move set ${set.set_number} up`}
+        onClick={() => onMove('up')}
+        disabled={!canMoveUp || isBusy}
+        className={iconButtonClass}
+      >
+        <ChevronUpIcon className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={`Move set ${set.set_number} down`}
+        onClick={() => onMove('down')}
+        disabled={!canMoveDown || isBusy}
+        className={iconButtonClass}
+      >
+        <ChevronDownIcon className="h-4 w-4" />
+      </button>
+    </div>
+  )
+
+  const deleteButton = (
+    <button
+      type="button"
+      aria-label={`Delete set ${set.set_number}`}
+      onClick={onDelete}
+      disabled={isBusy || isSaving}
+      className={`${iconButtonClass} hover:text-red-400 light:hover:text-red-600`}
+    >
+      <TrashIcon className="h-4 w-4" />
+    </button>
+  )
 
   if (!expanded) {
     return (
-      <li className="flex items-center gap-2 border-t border-line py-2 first:border-t-0">
-        <span className="w-6 shrink-0 text-center text-xs tabular-nums text-content-muted">
+      <li className="flex items-center gap-0.5 border-t border-line py-0.5 first:border-t-0">
+        {reorderButtons}
+        <span className="w-5 shrink-0 text-center text-xs tabular-nums text-content-muted">
           {set.set_number}
         </span>
         <button
@@ -108,21 +173,46 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
             </span>
           )}
         </button>
+        <button
+          type="button"
+          aria-label={`Edit set ${set.set_number}`}
+          onClick={openEditor}
+          disabled={isBusy}
+          className={iconButtonClass}
+        >
+          <PencilIcon className="h-4 w-4" />
+        </button>
+        {deleteButton}
       </li>
     )
   }
 
+  const busy = isBusy || isSaving
+
   return (
-    <li className="border-t border-line py-3 first:border-t-0">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <li className="border-t border-line py-1 first:border-t-0">
+      <div className="flex items-center gap-0.5">
+        {reorderButtons}
         <span className="text-xs font-medium text-content-muted">Set {set.set_number}</span>
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="min-h-11 rounded-lg px-2 text-xs font-medium text-content-muted transition-colors hover:text-content"
-        >
-          Cancel
-        </button>
+        <div className="ml-auto flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label={`Editing set ${set.set_number}`}
+            disabled
+            className={`${iconButtonClass} text-accent`}
+          >
+            <PencilIcon className="h-4 w-4" />
+          </button>
+          {deleteButton}
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            disabled={busy}
+            className="min-h-11 rounded-lg px-2 text-xs font-medium text-content-muted transition-colors hover:text-content disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -133,7 +223,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
           step={weightStep(unitSystem)}
           inputMode="decimal"
           placeholder="BW"
-          disabled={isBusy}
+          disabled={busy}
         />
         <StepperField
           label="Reps"
@@ -141,7 +231,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
           onChange={setReps}
           step={1}
           inputMode="numeric"
-          disabled={isBusy}
+          disabled={busy}
         />
       </div>
 
@@ -150,6 +240,7 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
           type="button"
           aria-pressed={isWarmup}
           onClick={() => setIsWarmup((current) => !current)}
+          disabled={busy}
           className={[
             'min-h-11 rounded-lg border px-3 text-xs font-medium transition-colors',
             isWarmup
@@ -167,29 +258,20 @@ export function SetRow({ set, unitSystem, isBusy, onPatch, onDelete }: SetRowPro
               onChange={setRpe}
               inputMode="decimal"
               placeholder="—"
-              disabled={isBusy}
+              disabled={busy}
               className="text-center"
             />
           </span>
         </label>
         <button
           type="button"
-          onClick={save}
-          disabled={isBusy || reps === null || reps < 1}
+          onClick={() => void save()}
+          disabled={busy || reps === null || reps < 1}
           className="ml-auto min-h-11 rounded-lg bg-accent-strong px-4 text-sm font-semibold text-surface transition-colors hover:bg-accent disabled:opacity-50"
         >
-          Save
+          {isSaving ? 'Saving…' : 'Save'}
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={onDelete}
-        disabled={isBusy}
-        className="mt-2 min-h-11 text-xs font-medium text-red-400 transition-colors hover:text-red-300 disabled:opacity-50 light:text-red-600 light:hover:text-red-500"
-      >
-        Delete set
-      </button>
     </li>
   )
 }

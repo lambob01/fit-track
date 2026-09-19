@@ -1,12 +1,18 @@
 import { useEffect } from 'react'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface ToastProps {
   message: string | null
   onDismiss: () => void
   durationMs?: number
+  action?: ToastAction | null
 }
 
-export function Toast({ message, onDismiss, durationMs = 3200 }: ToastProps) {
+export function Toast({ message, onDismiss, durationMs = 3200, action = null }: ToastProps) {
   useEffect(() => {
     if (message === null) {
       return
@@ -23,9 +29,18 @@ export function Toast({ message, onDismiss, durationMs = 3200 }: ToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-[calc(6rem_+_env(safe-area-inset-bottom))] z-50 mx-auto max-w-md rounded-xl border border-accent/50 bg-surface-raised px-4 py-3 text-sm font-medium shadow-lg"
+      className="fixed inset-x-4 bottom-[calc(6rem_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-md items-center justify-between gap-2 rounded-xl border border-accent/50 bg-surface-raised py-1 pr-1 pl-4 text-sm font-medium shadow-lg"
     >
-      {message}
+      <span className="min-w-0">{message}</span>
+      {action !== null && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="min-h-11 shrink-0 rounded-lg px-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10"
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   )
 }

@@ -83,6 +83,22 @@ function optimisticSet(item: WorkoutExercise, input: SetInput): WorkoutSet {
   }
 }
 
+function reorderSets(sets: WorkoutSet[], setIds: string[]): WorkoutSet[] {
+  if (setIds.length !== sets.length) {
+    return sets
+  }
+  const byId = new Map(sets.map((set) => [set.id, set]))
+  const ordered: WorkoutSet[] = []
+  for (const [index, setId] of setIds.entries()) {
+    const set = byId.get(setId)
+    if (set === undefined) {
+      return sets
+    }
+    ordered.push({ ...set, set_number: index + 1 })
+  }
+  return ordered
+}
+
 interface ExerciseGroupProps {
   item: WorkoutExercise
   exercise: Exercise | undefined
@@ -91,9 +107,12 @@ interface ExerciseGroupProps {
   timezone: string
   isAddingSet: boolean
   isRemoving: boolean
+  isReordering: boolean
+  pendingSetId: string | null
   onAddSet: (draft: SetDraft) => void
-  onPatchSet: (setId: string, patch: SetPatch) => void
-  onDeleteSet: (setId: string) => void
+  onPatchSet: (setId: string, patch: SetPatch) => Promise<unknown>
+  onDeleteSet: (set: WorkoutSet) => void
+  onReorderSets: (orderedIds: string[]) => void
   onRemove: () => void
 }
 
@@ -105,12 +124,29 @@ function ExerciseGroup({
   timezone,
   isAddingSet,
   isRemoving,
+  isReordering,
+  pendingSetId,
   onAddSet,
   onPatchSet,
   onDeleteSet,
+  onReorderSets,
   onRemove,
 }: ExerciseGroupProps) {
   const [confirmRemove, setConfirmRemove] = useState(false)
+
+  function moveSet(setId: string, direction: 'up' | 'down') {
+    const ids = item.sets.map((entry) => entry.id)
+    const index = ids.indexOf(setId)
+    const target = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || target < 0 || target >= ids.length) {
+      return
+    }
+    const next = ids.slice()
+    const moved = next[index]
+    next[index] = next[target]
+    next[target] = moved
+    onReorderSets(next)
+  }
 
   const perfQuery = useQuery({
     queryKey: ['last-performance', item.exercise_id],
@@ -215,14 +251,17 @@ function ExerciseGroup({
 
       {item.sets.length > 0 && (
         <ul className="mt-2">
-          {item.sets.map((set) => (
+          {item.sets.map((set, index) => (
             <SetRow
               key={set.id}
               set={set}
               unitSystem={unitSystem}
-              isBusy={false}
+              isBusy={pendingSetId === set.id || isReordering}
+              canMoveUp={index > 0}
+              canMoveDown={index < item.sets.length - 1}
               onPatch={(patch) => onPatchSet(set.id, patch)}
-              onDelete={() => onDeleteSet(set.id)}
+              onDelete={() => onDeleteSet(set)}
+              onMove={(direction) => moveSet(set.id, direction)}
             />
           ))}
         </ul>
@@ -250,13 +289,17 @@ export function WorkoutLoggerPage() {
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [undoDelete, setUndoDelete] = useState<{ itemId: string; set: WorkoutSet } | null>(null)
   const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [notesDraft, setNotesDraft] = useState<string | null>(null)
   const [focusGroupId, setFocusGroupId] = useState<string | null>(null)
   const focusedGroupRef = useRef<string | null>(null)
   const [confirmDeleteWorkout, setConfirmDeleteWorkout] = useState(false)
 
-  const dismissToast = useCallback(() => setToast(null), [])
+  const dismissToast = useCallback(() => {
+    setToast(null)
+    setUndoDelete(null)
+  }, [])
 
   const workoutQuery = useQuery({
     queryKey: ['workouts', id],
@@ -344,7 +387,8 @@ export function WorkoutLoggerPage() {
   })
 
   const deleteSetMutation = useMutation({
-    mutationFn: ({ setId }: { setId: string }) => workoutsApi.removeSet(setId),
+    mutationFn: ({ setId }: { setId: string; itemId: string; deletedSet: WorkoutSet }) =>
+      workoutsApi.removeSet(setId),
     onMutate: async ({ setId }) => {
       await queryClient.cancelQueries({ queryKey: ['workouts', id] })
       return optimisticUpdate(queryClient, id!, (current) => ({
@@ -353,6 +397,26 @@ export function WorkoutLoggerPage() {
           ...item,
           sets: item.sets.filter((set) => set.id !== setId),
         })),
+      }))
+    },
+    onSuccess: (_data, { itemId, deletedSet }) => {
+      setToast(null)
+      setUndoDelete({ itemId, set: deletedSet })
+    },
+    onError: (_error, _vars, context) => handleRollback(queryClient, id!, context),
+    onSettled: invalidateWorkoutData,
+  })
+
+  const reorderSetsMutation = useMutation({
+    mutationFn: ({ itemId, setIds }: { itemId: string; setIds: string[] }) =>
+      workoutsApi.reorderSets(itemId, setIds),
+    onMutate: async ({ itemId, setIds }) => {
+      await queryClient.cancelQueries({ queryKey: ['workouts', id] })
+      return optimisticUpdate(queryClient, id!, (current) => ({
+        ...current,
+        exercises: current.exercises.map((item) =>
+          item.id === itemId ? { ...item, sets: reorderSets(item.sets, setIds) } : item,
+        ),
       }))
     },
     onError: (_error, _vars, context) => handleRollback(queryClient, id!, context),
@@ -478,6 +542,29 @@ export function WorkoutLoggerPage() {
     })
   }
 
+  function handleDeleteSet(item: WorkoutExercise, set: WorkoutSet) {
+    deleteSetMutation.mutate({ setId: set.id, itemId: item.id, deletedSet: set })
+  }
+
+  function handleUndoDelete() {
+    if (undoDelete === null) {
+      return
+    }
+    const { itemId, set } = undoDelete
+    setUndoDelete(null)
+    addSetMutation.mutate({
+      itemId,
+      input: {
+        weight_kg: set.weight_kg,
+        reps: set.reps,
+        rpe: set.rpe,
+        is_warmup: set.is_warmup,
+        is_drop_set: set.is_drop_set,
+        notes: set.notes,
+      },
+    })
+  }
+
   function handleNameBlur() {
     if (nameDraft === null || workout === undefined) {
       return
@@ -529,6 +616,13 @@ export function WorkoutLoggerPage() {
   const nameValue = nameDraft ?? workout.name ?? ''
   const notesValue = notesDraft ?? workout.notes ?? ''
   const notesDirty = notesDraft !== null && notesDraft !== (workout.notes ?? '')
+
+  const pendingSetId =
+    patchSetMutation.isPending && patchSetMutation.variables !== undefined
+      ? patchSetMutation.variables.setId
+      : deleteSetMutation.isPending && deleteSetMutation.variables !== undefined
+        ? deleteSetMutation.variables.setId
+        : null
 
   let setCount = 0
   let volumeKg = 0
@@ -611,9 +705,14 @@ export function WorkoutLoggerPage() {
               removeExerciseMutation.isPending &&
               removeExerciseMutation.variables?.itemId === item.id
             }
+            isReordering={reorderSetsMutation.isPending}
+            pendingSetId={pendingSetId}
             onAddSet={(draft) => handleAddSet(item, draft)}
-            onPatchSet={(setId, patch) => patchSetMutation.mutate({ setId, patch })}
-            onDeleteSet={(setId) => deleteSetMutation.mutate({ setId })}
+            onPatchSet={(setId, patch) => patchSetMutation.mutateAsync({ setId, patch })}
+            onDeleteSet={(set) => handleDeleteSet(item, set)}
+            onReorderSets={(orderedIds) =>
+              reorderSetsMutation.mutate({ itemId: item.id, setIds: orderedIds })
+            }
             onRemove={() => removeExerciseMutation.mutate({ itemId: item.id })}
           />
         ))}
@@ -634,14 +733,16 @@ export function WorkoutLoggerPage() {
         addExerciseMutation.isError ||
         removeExerciseMutation.isError ||
         patchSetMutation.isError ||
-        deleteSetMutation.isError) && (
+        deleteSetMutation.isError ||
+        reorderSetsMutation.isError) && (
         <p role="alert" className="text-sm text-red-400 light:text-red-600">
           {errorDetail(
             addSetMutation.error ??
               addExerciseMutation.error ??
               removeExerciseMutation.error ??
               patchSetMutation.error ??
-              deleteSetMutation.error,
+              deleteSetMutation.error ??
+              reorderSetsMutation.error,
           )}
         </p>
       )}
@@ -714,7 +815,13 @@ export function WorkoutLoggerPage() {
         )}
       </section>
 
-      <Toast message={toast} onDismiss={dismissToast} />
+      <Toast
+        key={undoDelete === null ? 'message' : `undo:${undoDelete.set.id}`}
+        message={undoDelete === null ? toast : 'Set deleted'}
+        onDismiss={dismissToast}
+        durationMs={undoDelete === null ? undefined : 6000}
+        action={undoDelete === null ? undefined : { label: 'Undo', onClick: handleUndoDelete }}
+      />
     </div>
   )
 }

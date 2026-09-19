@@ -235,6 +235,10 @@ export interface SetPatch {
   is_warmup?: boolean
 }
 
+export interface ReorderSetsInput {
+  set_ids: string[]
+}
+
 export interface WorkoutExercise {
   id: string
   exercise_id: string

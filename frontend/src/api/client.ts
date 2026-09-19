@@ -21,6 +21,7 @@ import type {
   PlanInput,
   PlanPatch,
   Profile,
+  ReorderSetsInput,
   SetInput,
   SetPatch,
   Settings,
@@ -230,6 +231,13 @@ export const workoutsApi = {
   patchSet: (setId: string, patch: SetPatch) =>
     api<WorkoutSet>(`/api/sets/${setId}`, jsonRequest('PATCH', patch)),
   removeSet: (setId: string) => api<void>(`/api/sets/${setId}`, { method: 'DELETE' }),
+  reorderSets: (workoutExerciseId: string, setIds: string[]) => {
+    const input: ReorderSetsInput = { set_ids: setIds }
+    return api<WorkoutSet[]>(
+      `/api/workout-exercises/${workoutExerciseId}/reorder-sets`,
+      jsonRequest('POST', input),
+    )
+  },
   startFromTemplate: (templateId: string) =>
     api<StartFromTemplateResult>(
       `/api/workouts/from-template/${templateId}`,
