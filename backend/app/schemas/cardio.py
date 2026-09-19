@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 from app.services.analytics import pace_s_per_km
 
 CardioType = Literal["run", "cycle", "swim", "row", "other"]
+SplitSource = Literal["stored", "derived"]
 
 
 def as_utc(value: datetime, field_name: str = "performed_at") -> datetime:
@@ -23,6 +24,28 @@ def stored_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+class CardioSplitIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    split_number: int | None = Field(default=None, ge=1)
+    distance_m: float = Field(gt=0)
+    duration_s: int = Field(gt=0)
+
+
+def _validate_splits(
+    splits: list[CardioSplitIn] | None,
+) -> list[CardioSplitIn] | None:
+    if splits is None:
+        return None
+    numbers = [
+        split.split_number if split.split_number is not None else index + 1
+        for index, split in enumerate(splits)
+    ]
+    if len(set(numbers)) != len(numbers):
+        raise ValueError("split_number values must be unique")
+    return splits
+
+
 class CardioActivityCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -34,11 +57,19 @@ class CardioActivityCreate(BaseModel):
     route_name: str | None = None
     notes: str | None = None
     shoe_id: UUID | None = None
+    splits: list[CardioSplitIn] | None = None
 
     @field_validator("performed_at")
     @classmethod
     def utc_performed_at(cls, value: datetime) -> datetime:
         return as_utc(value)
+
+    @field_validator("splits")
+    @classmethod
+    def unique_split_numbers(
+        cls, value: list[CardioSplitIn] | None
+    ) -> list[CardioSplitIn] | None:
+        return _validate_splits(value)
 
 
 class CardioActivityPatch(BaseModel):
@@ -52,11 +83,32 @@ class CardioActivityPatch(BaseModel):
     route_name: str | None = None
     notes: str | None = None
     shoe_id: UUID | None = None
+    splits: list[CardioSplitIn] | None = None
 
     @field_validator("performed_at")
     @classmethod
     def utc_performed_at(cls, value: datetime | None) -> datetime | None:
         return None if value is None else as_utc(value)
+
+    @field_validator("splits")
+    @classmethod
+    def unique_split_numbers(
+        cls, value: list[CardioSplitIn] | None
+    ) -> list[CardioSplitIn] | None:
+        return _validate_splits(value)
+
+
+class CardioSplitOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    split_number: int
+    distance_m: float
+    duration_s: int
+
+
+class CardioSplitsOut(BaseModel):
+    source: SplitSource
+    splits: list[CardioSplitOut]
 
 
 class CardioActivityOut(BaseModel):

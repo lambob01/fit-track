@@ -3,17 +3,20 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import CardioActivity, User
+from app.models import CardioActivity, CardioSplit, User
 from app.routers.shoes import require_owned_shoe
 from app.schemas.cardio import (
     CardioActivityCreate,
     CardioActivityOut,
     CardioActivityPatch,
+    CardioSplitIn,
+    CardioSplitOut,
+    CardioSplitsOut,
     CardioSummaryOut,
     CardioType,
     CardioWeekOut,
@@ -34,6 +37,49 @@ def _get_owned(db: Session, user: User, activity_id: UUID) -> CardioActivity:
     if activity is None or activity.user_id != user.id:
         raise HTTPException(status_code=404, detail="Cardio activity not found")
     return activity
+
+
+def _replace_splits(
+    db: Session, activity_id: UUID, splits: list[CardioSplitIn] | None
+) -> None:
+    db.execute(delete(CardioSplit).where(CardioSplit.cardio_activity_id == activity_id))
+    for index, split in enumerate(splits or []):
+        db.add(
+            CardioSplit(
+                cardio_activity_id=activity_id,
+                split_number=split.split_number
+                if split.split_number is not None
+                else index + 1,
+                distance_m=split.distance_m,
+                duration_s=split.duration_s,
+            )
+        )
+
+
+def _derived_splits(distance_m: float | None, duration_s: int) -> list[CardioSplitOut]:
+    """Evenly pace 1 km segments (final remainder), for display only."""
+    if not distance_m:
+        return []
+    splits: list[CardioSplitOut] = []
+    remaining = float(distance_m)
+    covered = 0.0
+    allocated_s = 0
+    split_number = 1
+    while remaining > 1e-9:
+        segment = min(1000.0, remaining)
+        covered += segment
+        cumulative_s = round(duration_s * covered / distance_m)
+        splits.append(
+            CardioSplitOut(
+                split_number=split_number,
+                distance_m=segment,
+                duration_s=cumulative_s - allocated_s,
+            )
+        )
+        allocated_s = cumulative_s
+        remaining -= segment
+        split_number += 1
+    return splits
 
 
 def _utc_or_422(value: datetime | None, name: str) -> datetime | None:
@@ -149,6 +195,8 @@ def create_activity(
         shoe_id=payload.shoe_id,
     )
     db.add(activity)
+    db.flush()
+    _replace_splits(db, activity.id, payload.splits)
     db.commit()
     db.refresh(activity)
     return activity
@@ -177,6 +225,31 @@ def cardio_week(
     return week_totals(db, user, week_start)
 
 
+@router.get("/splits/{activity_id}", response_model=CardioSplitsOut)
+def get_activity_splits(
+    activity_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CardioSplitsOut:
+    activity = _get_owned(db, user, activity_id)
+    stored = list(
+        db.scalars(
+            select(CardioSplit)
+            .where(CardioSplit.cardio_activity_id == activity.id)
+            .order_by(CardioSplit.split_number)
+        )
+    )
+    if stored:
+        return CardioSplitsOut(
+            source="stored",
+            splits=[CardioSplitOut.model_validate(split) for split in stored],
+        )
+    return CardioSplitsOut(
+        source="derived",
+        splits=_derived_splits(activity.distance_m, activity.duration_s),
+    )
+
+
 @router.get("/{activity_id}", response_model=CardioActivityOut)
 def get_activity(
     activity_id: UUID,
@@ -195,12 +268,16 @@ def patch_activity(
 ) -> CardioActivity:
     activity = _get_owned(db, user, activity_id)
     for field in payload.model_fields_set:
+        if field == "splits":
+            continue
         value = getattr(payload, field)
         if value is None and field in PATCH_REQUIRED_FIELDS:
             raise HTTPException(status_code=422, detail=f"{field} cannot be null")
         if field == "shoe_id":
             require_owned_shoe(db, user, value)
         setattr(activity, field, value)
+    if "splits" in payload.model_fields_set:
+        _replace_splits(db, activity.id, payload.splits)
     db.commit()
     db.refresh(activity)
     return activity
