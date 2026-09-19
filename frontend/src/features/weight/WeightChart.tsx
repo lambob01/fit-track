@@ -34,7 +34,7 @@ const BUCKETS: { key: WeightBucket; short: string; label: string }[] = [
 
 type OverlayKey = 'final' | 'weekly' | 'monthly' | 'dated'
 
-interface ChartRow {
+export interface ChartRow {
   ts: number
   weight: number | null
   average: number | null
@@ -46,6 +46,7 @@ interface ChartRow {
 }
 
 interface BuildOptions {
+  range: DateRange
   showWeekly: boolean
   showMonthly: boolean
   showDated: boolean
@@ -62,7 +63,8 @@ const WEIGHT_KEYS = [
   'requiredRate',
 ] as const
 
-function buildChartData(series: WeightSeries, options: BuildOptions): ChartRow[] {
+// eslint-disable-next-line react-refresh/only-export-components -- pure builder is unit-tested separately
+export function buildChartData(series: WeightSeries, options: BuildOptions): ChartRow[] {
   const rows = new Map<number, ChartRow>()
 
   function rowAt(ts: number): ChartRow {
@@ -147,7 +149,20 @@ function buildChartData(series: WeightSeries, options: BuildOptions): ChartRow[]
     }
   }
 
-  return [...rows.values()].sort((a, b) => a.ts - b.ts)
+  const rangeFrom = new Date(options.range.from).getTime()
+  const rangeTo = new Date(options.range.to).getTime()
+
+  const clipped = [...rows.values()].filter(
+    (row) => row.ts >= rangeFrom && row.ts <= rangeTo,
+  )
+  const requiredRatePointCount = clipped.filter((row) => row.requiredRate !== null).length
+  if (requiredRatePointCount < 2) {
+    for (const row of clipped) {
+      row.requiredRate = null
+    }
+  }
+
+  return clipped.sort((a, b) => a.ts - b.ts)
 }
 
 function buildYDomain(rows: ChartRow[], extra: number[]): [number, number] | undefined {
@@ -288,12 +303,15 @@ export function WeightChart({
     series === undefined
       ? []
       : buildChartData(series, {
+          range,
           showWeekly: shown.weekly,
           showMonthly: shown.monthly,
           showDated: shown.dated,
           heightCm,
           timezone,
         })
+
+  const showRequiredRateLine = data.some((row) => row.requiredRate !== null)
 
   const extraValues: number[] = []
   if (shown.final && finalKg !== null) {
@@ -464,15 +482,17 @@ export function WeightChart({
             dot={false}
             connectNulls
           />
-          <Line
-            yAxisId="weight"
-            type="linear"
-            dataKey="requiredRate"
-            name="Required rate"
-            {...SEMANTIC_LINES.requiredRate}
-            dot={false}
-            connectNulls
-          />
+          {showRequiredRateLine && (
+            <Line
+              yAxisId="weight"
+              type="linear"
+              dataKey="requiredRate"
+              name="Required rate"
+              {...SEMANTIC_LINES.requiredRate}
+              dot={false}
+              connectNulls
+            />
+          )}
           {showBmi && (
             <Line
               yAxisId="bmi"
@@ -489,7 +509,7 @@ export function WeightChart({
         <WeightLegend
           showWeekly={shown.weekly}
           showMonthly={shown.monthly}
-          showDated={shown.dated}
+          showDated={shown.dated && showRequiredRateLine}
           showFinal={shown.final}
           hasDatedTarget={hasDatedTarget}
           finalKg={finalKg}
