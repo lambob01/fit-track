@@ -1,5 +1,21 @@
 export type UnitSystem = 'metric' | 'imperial'
 
+export interface Profile {
+  id: string
+  username: string
+  is_active: boolean
+  is_login_account: boolean
+  has_data: boolean
+  created_at: string
+}
+
+export interface DemoSeedCounts {
+  exercises: number
+  workouts: number
+  cardio_activities: number
+  weight_entries: number
+}
+
 export interface User {
   id: string
   username: string

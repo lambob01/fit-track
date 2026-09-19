@@ -6,6 +6,7 @@ import type {
   CardioType,
   CardioWeek,
   Dashboard,
+  DemoSeedCounts,
   Exercise,
   ExerciseInput,
   ExercisePatch,
@@ -19,6 +20,7 @@ import type {
   Plan,
   PlanInput,
   PlanPatch,
+  Profile,
   SetInput,
   SetPatch,
   Settings,
@@ -161,6 +163,15 @@ export const dataApi = {
       headers: { 'Content-Type': 'application/json' },
       body,
     }),
+  seedDemo: () => api<DemoSeedCounts>('/api/data/demo', jsonRequest('POST')),
+}
+
+export const profilesApi = {
+  list: () => api<Profile[]>('/api/profiles'),
+  create: (name: string) => api<Profile>('/api/profiles', jsonRequest('POST', { name })),
+  switch: (id: string) => api<void>(`/api/profiles/${id}/switch`, jsonRequest('POST')),
+  remove: (id: string, password: string) =>
+    api<void>(`/api/profiles/${id}`, jsonRequest('DELETE', { password })),
 }
 
 export interface ExerciseListParams {

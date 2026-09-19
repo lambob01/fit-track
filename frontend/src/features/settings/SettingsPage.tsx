@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client'
 import type { Settings, UnitSystem } from '../../api/types'
 import { NumberField } from '../../components/NumberField'
 import { useSettings } from '../../context/SettingsContext'
+import { ProfileManager } from '../profiles/ProfileManager'
 import { DataPage } from './DataPage'
 import {
   buildSettingsPatch,
@@ -290,6 +291,7 @@ export function SettingsPage() {
         id="settings-panel-settings"
         aria-labelledby="settings-tab-settings"
         hidden={tab !== 'settings'}
+        className="space-y-4"
       >
         {isLoading ? (
           <p className="text-sm text-content-muted">Loading settings…</p>
@@ -309,8 +311,9 @@ export function SettingsPage() {
             </button>
           </section>
         ) : (
-          <SettingsForm settings={settings} />
+          <SettingsForm key={settings.id} settings={settings} />
         )}
+        <ProfileManager />
       </div>
 
       <div

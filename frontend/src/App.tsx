@@ -12,6 +12,7 @@ import { LiftingPage } from './features/lifting/LiftingPage'
 import { TemplateEditorPage } from './features/lifting/TemplateEditorPage'
 import { TemplateListPage } from './features/lifting/TemplateListPage'
 import { WorkoutLoggerPage } from './features/lifting/WorkoutLoggerPage'
+import { FirstRunSheet } from './features/profiles/FirstRunSheet'
 import { RunningPage } from './features/running/RunningPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { WeightPage } from './features/weight/WeightPage'
@@ -38,6 +39,7 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <Layout />
+                    <FirstRunSheet />
                   </RequireAuth>
                 }
               >
