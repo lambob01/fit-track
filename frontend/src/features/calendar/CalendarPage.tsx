@@ -17,6 +17,7 @@ import { formatDateKey, mondayOfDateKey, todayDateKey } from '../../lib/datetime
 import { QueryErrorNotice } from '../lifting/QueryErrorNotice'
 import { CalendarList } from './CalendarList'
 import { DaySheet } from './DaySheet'
+import { MissedWorkoutsBanner } from './MissedWorkoutsBanner'
 import { MonthGrid } from './MonthGrid'
 import { PlanEditor } from './PlanEditor'
 import { TemplateQuickCreate } from './TemplateQuickCreate'
@@ -167,6 +168,8 @@ export function CalendarPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold tracking-tight">Calendar</h1>
+
+      <MissedWorkoutsBanner today={today} timezone={timezone} />
 
       <section className="rounded-xl border border-line bg-surface-raised p-2">
         <div role="group" aria-label="Calendar view" className="grid grid-cols-3 gap-1">
