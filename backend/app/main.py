@@ -19,6 +19,7 @@ from app.routers import (
     phase2,
     plans,
     profiles,
+    shoes,
     templates,
     weight,
     workouts,
@@ -61,7 +62,7 @@ app.include_router(profiles.demo_router)
 app.include_router(phase2.measurements_router, dependencies=[Depends(get_current_user)])
 app.include_router(phase2.photos_router, dependencies=[Depends(get_current_user)])
 app.include_router(phase2.tags_router, dependencies=[Depends(get_current_user)])
-app.include_router(phase2.shoes_router, dependencies=[Depends(get_current_user)])
+app.include_router(shoes.router)
 # Later phases: routers with dependencies=[Depends(get_current_user)] or per-route Depends
 
 

@@ -33,6 +33,7 @@ class CardioActivityCreate(BaseModel):
     avg_hr: int | None = Field(default=None, ge=30, le=250)
     route_name: str | None = None
     notes: str | None = None
+    shoe_id: UUID | None = None
 
     @field_validator("performed_at")
     @classmethod
@@ -50,6 +51,7 @@ class CardioActivityPatch(BaseModel):
     avg_hr: int | None = Field(default=None, ge=30, le=250)
     route_name: str | None = None
     notes: str | None = None
+    shoe_id: UUID | None = None
 
     @field_validator("performed_at")
     @classmethod
@@ -68,6 +70,7 @@ class CardioActivityOut(BaseModel):
     avg_hr: int | None
     route_name: str | None
     notes: str | None
+    shoe_id: UUID | None
     source: str
 
     @field_validator("performed_at")

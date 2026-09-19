@@ -1,6 +1,6 @@
 import pytest
 
-PREFIXES = ["/api/measurements", "/api/photos", "/api/tags", "/api/shoes"]
+PREFIXES = ["/api/measurements", "/api/photos", "/api/tags"]
 
 
 @pytest.mark.parametrize("prefix", PREFIXES)
@@ -18,3 +18,7 @@ def test_phase2_endpoints_return_501(auth_client, prefix):
 def test_phase2_requires_auth_before_501(client, prefix):
     assert client.get(prefix).status_code == 401
     assert client.post(prefix, json={}).status_code == 401
+
+
+def test_shoes_is_no_longer_a_stub(auth_client):
+    assert auth_client.get("/api/shoes").status_code == 200

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -89,34 +89,6 @@ class TagOut(BaseModel):
 
     id: UUID
     name: str
-    created_at: datetime
-    updated_at: datetime
-
-    @field_validator("created_at", "updated_at")
-    @classmethod
-    def utc_timestamps(cls, value: datetime) -> datetime:
-        return stored_utc(value)
-
-
-class ShoeCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = None
-    purchased_at: date | None = None
-    initial_distance_m: float | None = Field(default=None, ge=0)
-    retired_at: date | None = None
-    notes: str | None = None
-
-
-class ShoeOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    name: str
-    purchased_at: date | None
-    initial_distance_m: float
-    retired_at: date | None
-    notes: str | None
     created_at: datetime
     updated_at: datetime
 

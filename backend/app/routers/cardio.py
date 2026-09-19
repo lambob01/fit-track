@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import CardioActivity, User
+from app.routers.shoes import require_owned_shoe
 from app.schemas.cardio import (
     CardioActivityCreate,
     CardioActivityOut,
@@ -135,6 +136,7 @@ def create_activity(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> CardioActivity:
+    require_owned_shoe(db, user, payload.shoe_id)
     activity = CardioActivity(
         user_id=user.id,
         performed_at=payload.performed_at,
@@ -144,6 +146,7 @@ def create_activity(
         avg_hr=payload.avg_hr,
         route_name=payload.route_name,
         notes=payload.notes,
+        shoe_id=payload.shoe_id,
     )
     db.add(activity)
     db.commit()
@@ -195,6 +198,8 @@ def patch_activity(
         value = getattr(payload, field)
         if value is None and field in PATCH_REQUIRED_FIELDS:
             raise HTTPException(status_code=422, detail=f"{field} cannot be null")
+        if field == "shoe_id":
+            require_owned_shoe(db, user, value)
         setattr(activity, field, value)
     db.commit()
     db.refresh(activity)
