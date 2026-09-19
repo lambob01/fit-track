@@ -9,28 +9,22 @@ import argparse
 import sys
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models import (
-    BodyMeasurement,
     CardioActivity,
     Exercise,
-    ProgressPhoto,
     SetEntry,
-    Shoe,
-    Tag,
-    TemplateExercise,
     User,
     WeightEntry,
     Workout,
     WorkoutExercise,
-    WorkoutTag,
-    WorkoutTemplate,
 )
 from app.seed.exercises import seed_exercises
 from app.seed.fake_data import seed_fake_data
+from app.services.user_data import delete_user_data
 from app.services.users import ensure_default_user
 
 
@@ -46,36 +40,6 @@ def _resolve_user(db: Session) -> User:
         )
         raise SystemExit(1)
     return user
-
-
-def _reset_user_data(db: Session, user_id: UUID) -> None:
-    workout_ids = select(Workout.id).where(Workout.user_id == user_id)
-    tag_ids = select(Tag.id).where(Tag.user_id == user_id)
-    template_ids = select(WorkoutTemplate.id).where(WorkoutTemplate.user_id == user_id)
-    workout_exercise_ids = select(WorkoutExercise.id).where(
-        WorkoutExercise.workout_id.in_(workout_ids)
-    )
-
-    statements = [
-        delete(WorkoutTag).where(
-            WorkoutTag.workout_id.in_(workout_ids) | WorkoutTag.tag_id.in_(tag_ids)
-        ),
-        delete(SetEntry).where(SetEntry.workout_exercise_id.in_(workout_exercise_ids)),
-        delete(WorkoutExercise).where(WorkoutExercise.workout_id.in_(workout_ids)),
-        delete(Workout).where(Workout.user_id == user_id),
-        delete(TemplateExercise).where(TemplateExercise.template_id.in_(template_ids)),
-        delete(WorkoutTemplate).where(WorkoutTemplate.user_id == user_id),
-        delete(CardioActivity).where(CardioActivity.user_id == user_id),
-        delete(WeightEntry).where(WeightEntry.user_id == user_id),
-        delete(BodyMeasurement).where(BodyMeasurement.user_id == user_id),
-        delete(ProgressPhoto).where(ProgressPhoto.user_id == user_id),
-        delete(Tag).where(Tag.user_id == user_id),
-        delete(Shoe).where(Shoe.user_id == user_id),
-        delete(Exercise).where(Exercise.user_id == user_id),
-    ]
-    for statement in statements:
-        db.execute(statement.execution_options(synchronize_session=False))
-    db.commit()
 
 
 def _has_fake_data(db: Session, user_id: UUID) -> bool:
@@ -110,7 +74,7 @@ def run(days: int = 30, seed: int = 42, reset: bool = False) -> None:
     with SessionLocal() as db:
         user = _resolve_user(db)
         if reset:
-            _reset_user_data(db, user.id)
+            delete_user_data(db, user.id)
 
         seed_exercises(db, user.id)
         generated = not _has_fake_data(db, user.id)

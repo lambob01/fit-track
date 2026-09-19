@@ -14,6 +14,7 @@ from app.routers import (
     cardio,
     dashboard,
     data,
+    data_delete,
     exercises,
     phase2,
     plans,
@@ -47,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(cardio.router)
 app.include_router(dashboard.router)
 app.include_router(data.router)
+app.include_router(data_delete.router)
 app.include_router(exercises.router)
 app.include_router(settings_router.router)
 app.include_router(weight.router)
